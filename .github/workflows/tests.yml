@@ -1,0 +1,28 @@
+name: tests
+
+# Runs everything that doesn't need private footage or an NVIDIA card. The full
+# check (check.bat) also needs a real GoPro clip, so it runs on a developer's PC.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          .venv\Scripts\python -m pip install -r requirements.txt
+          .venv\Scripts\python tools\fetch_vendor.py
+      - name: Run tests without the real-clip ones
+        run: .venv\Scripts\python -m pytest tests -q --tb=short --deselect tests/test_quality.py::test_real_clip_supplied

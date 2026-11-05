@@ -1,0 +1,36 @@
+name: Bug report
+description: Something went wrong or looked wrong
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Please don't attach private footage. Screenshots and the saved report are usually enough.
+  - type: input
+    id: version
+    attributes:
+      label: ClipShrink version
+      description: Shown in the window title
+      placeholder: "1.1"
+    validations:
+      required: true
+  - type: input
+    id: setup
+    attributes:
+      label: Windows version, graphics card and GoPro model
+      placeholder: Windows 11, RTX 3060, HERO9
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. Choose a folder on G: 2. ..."
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where are the videos?
+      options: [Local disk, Google Drive for desktop, External drive, Network drive, Other]
