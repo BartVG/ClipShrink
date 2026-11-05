@@ -60,3 +60,21 @@ def test_player_has_detail_mode(get_clip, workspace):
         assert shot.stat().st_size > 0
     finally:
         p.close()
+
+
+def test_player_stopping_is_reported_cleanly(get_clip):
+    """Seen on a machine where mpv stopped: this must be PlayerError, which the
+    window turns into a message, not a raw OSError."""
+    import pytest
+    from clipshrink.player import PlayerError, SideBySidePlayer
+    src = get_clip("no_audio_no_telemetry")
+    p = SideBySidePlayer(src, src, mute=True)
+    p.start()
+    try:
+        p.proc.kill()
+        p.proc.wait()
+        with pytest.raises(PlayerError):
+            for _ in range(5):
+                p.position()
+    finally:
+        p.close()

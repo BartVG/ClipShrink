@@ -308,7 +308,7 @@ class MainWindow(QMainWindow):
         self.busy = False
         self.bridge = Bridge()
         self.bridge.call.connect(lambda fn: fn())
-        self.setWindowTitle(f"{config.APP_NAME} {config.VERSION}: shrink GoPro videos, keep the quality")
+        self.setWindowTitle(f"{config.APP_NAME} {config.VERSION}: shrink videos, keep the quality")
         self.resize(1080, 720)
         self.setStyleSheet(STYLE)
 
@@ -643,7 +643,7 @@ class MainWindow(QMainWindow):
                 self.est_table.setItem(i, c, cell(val))
         self.to_convert.setEnabled(True)
         self.start_btn.setEnabled(True)
-        self.conv_info.setText(f"{len(self.selected_files())} videos, {human_size(est.total_source_bytes)}. "
+        self.conv_info.setText(f"{len(self.selected_files())} video{'s' if len(self.selected_files()) != 1 else ''}, {human_size(est.total_source_bytes)}. "
                                f"Expected time: {human_time(est.seconds_estimate)}. Your computer will not go to sleep "
                                f"while this runs.")
 

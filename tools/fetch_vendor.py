@@ -1,6 +1,6 @@
 """Downloads the two programs ClipShrink bundles (FFmpeg and mpv) into vendor/.
 They are not stored in this repository because of their size. Run by setup_dev.bat."""
-import json, shutil, subprocess, sys, tempfile, urllib.request
+import json, os, shutil, subprocess, sys, tempfile, urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -9,8 +9,10 @@ TAR = r"C:\Windows\System32\tar.exe"   # Windows' own tar also reads .zip and .7
 
 
 def latest_assets(repo):
-    req = urllib.request.Request(f"https://api.github.com/repos/{repo}/releases/latest",
-                                 headers={"User-Agent": "clipshrink-setup"})
+    headers = {"User-Agent": "clipshrink-setup"}
+    if os.environ.get("GITHUB_TOKEN"):      # automatic tests share an address, so need their own limit
+        headers["Authorization"] = f"Bearer {os.environ['GITHUB_TOKEN']}"
+    req = urllib.request.Request(f"https://api.github.com/repos/{repo}/releases/latest", headers=headers)
     with urllib.request.urlopen(req) as r:
         return json.load(r)["assets"]
 

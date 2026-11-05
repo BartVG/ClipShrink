@@ -69,10 +69,16 @@ class SideBySidePlayer:
                 raise PlayerError("the video player is closed")
             self._req += 1
             rid = self._req
-            self._f.write((json.dumps({"command": list(args), "request_id": rid}) + "\n").encode())
             buf = b""
+            try:
+                self._f.write((json.dumps({"command": list(args), "request_id": rid}) + "\n").encode())
+            except OSError:
+                raise PlayerError("the video player stopped") from None
             while True:
-                c = self._f.read(4096)
+                try:
+                    c = self._f.read(4096)
+                except OSError:
+                    raise PlayerError("the video player stopped") from None
                 if not c:
                     raise PlayerError("the video player stopped")
                 buf += c

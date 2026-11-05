@@ -7,7 +7,7 @@ from pathlib import Path
 from . import db, engine, scan
 
 GOOGLE_DRIVE_WARNING = (
-    "Google Drive keeps counting deleted files against your storage until they leave its trash. "
+    "If your videos are in Google Drive, it keeps counting deleted files against your storage until they leave its trash. "
     "To actually get the space back, also empty the trash at drive.google.com, or wait for Google to "
     "remove them after 30 days."
 )

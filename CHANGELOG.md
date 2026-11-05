@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2 - 2026-11-05
+
+### Changed
+- The app's wording now covers any H.264 video, not only GoPro files.
+- The Google Drive warning now says it applies only to videos stored in Drive.
+
+### Fixed
+- The Convert page no longer says "1 videos".
+- If the video player stops unexpectedly, the app now shows a message instead of an error crash.
+
 ## 1.1 - 2026-11-05
 
 First public release.

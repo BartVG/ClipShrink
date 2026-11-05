@@ -12,7 +12,7 @@ The ClipShrink installer bundles the programs below. ClipShrink is released unde
 | [Python](https://www.python.org) | Runs the app | PSF | [Python source](https://www.python.org/downloads/source/) |
 | [PyInstaller](https://pyinstaller.org) | Packages the app | GPL 2 with bootloader exception | [PyInstaller source](https://github.com/pyinstaller/pyinstaller) |
 
-**Exact versions in release 1.1:**
+**Exact versions in release 1.2:**
 
 - FFmpeg `n8.1.3-34-ga35157abb9-20261105`
 - mpv `v0.42.0-1-g3138fc8ee`, built 2026-11-05

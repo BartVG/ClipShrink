@@ -199,7 +199,28 @@ def test_ticks_stay_on_the_right_files_with_skipped_rows_present(dark_review, wo
 def test_version_is_one_place_and_shown(window):
     from pathlib import Path
     from clipshrink import config
-    assert config.VERSION == "1.1"
+    assert config.VERSION == "1.2"
     assert config.VERSION in window.windowTitle()
     iss = (Path(__file__).resolve().parents[1] / "installer" / "clipshrink.iss").read_text(encoding="utf-8")
     assert f"AppVersion={config.VERSION}" in iss
+
+
+# --- ClipShrink is for any H.264 video, and saves disk space anywhere
+def test_wording_is_not_only_for_gopro(window):
+    from clipshrink import config, trash
+    title = window.windowTitle()
+    assert "GoPro" not in title and "videos" in title
+    assert "GoPro originals" not in config.QUALITY_EXPLANATION
+    assert "telemetry" in config.QUALITY_EXPLANATION, "must still promise telemetry is kept"
+    assert trash.GOOGLE_DRIVE_WARNING.startswith("If your videos are in Google Drive"), "only applies to Drive users"
+
+
+def test_one_video_is_singular(dark_review, workspace):
+    from clipshrink.estimate import Estimate
+    w = dark_review
+    _scan_page(w, workspace, ["a.mp4"], [])
+    w._estimate_done(Estimate(10, 5, 4, 6, 60.0, "x265", [], 1))
+    assert w.conv_info.text().startswith("1 video,")
+    _scan_page(w, workspace, ["a.mp4", "b.mp4"], [])
+    w._estimate_done(Estimate(20, 5, 4, 6, 60.0, "x265", [], 2))
+    assert w.conv_info.text().startswith("2 videos,")
