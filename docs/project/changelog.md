@@ -2,6 +2,13 @@
 
 Every released version of ClipShrink, newest first. The authoritative file is [CHANGELOG.md on GitHub](https://github.com/tophe323/ClipShrink/blob/main/CHANGELOG.md).
 
+## 1.5.1 - 2026-11-06
+
+### Changed
+- **Licence information is complete.** The app now installs a `licenses` folder with the licence texts of what it bundles, and the exact source code of FFmpeg, mpv and Qt is published with the release.
+
+Nothing else changed, including how videos are converted.
+
 ## 1.5 - 2026-11-06
 
 ### Fixed
