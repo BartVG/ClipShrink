@@ -24,3 +24,6 @@ sample_videos/
 # Written by each local run of the check
 docs/.last_check.xml
 docs/check_history.md
+
+# Documentation build output
+site/

@@ -1,0 +1,64 @@
+site_name: ClipShrink
+site_description: Batch-convert H.264 videos to H.265 on Windows, with measured quality.
+site_url: https://tophe323.github.io/ClipShrink/
+repo_url: https://github.com/tophe323/ClipShrink
+repo_name: tophe323/ClipShrink
+edit_uri: edit/main/docs/
+docs_dir: docs
+
+exclude_docs: |
+  check_history.md
+
+not_in_nav: |
+  /how-it-works.md
+
+validation:
+  links:
+    not_found: info
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+plugins:
+  - search
+  - awesome-nav
