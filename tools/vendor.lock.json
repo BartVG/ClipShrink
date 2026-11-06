@@ -1,0 +1,32 @@
+{
+  "ffmpeg": {
+    "version": "n8.1.3-34-ga35157abb9-20261105",
+    "file": "ffmpeg-n8.1.3-34-ga35157abb9-win64-gpl-8.1.zip",
+    "url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-11-05-12-48/ffmpeg-n8.1.3-34-ga35157abb9-win64-gpl-8.1.zip",
+    "sha256": "71a964fcf86674410121bd6f72dfe7a015137c9e9979fbeadbca938450546170",
+    "strip": true,
+    "check": "bin/ffmpeg.exe",
+    "commit": "a35157abb9",
+    "repo": "https://github.com/FFmpeg/FFmpeg.git",
+    "recipe_repo": "BtbN/FFmpeg-Builds",
+    "recipe_commit": "c63bb308a1de656b425c132a8102f8fd5389afc5"
+  },
+  "mpv": {
+    "version": "v0.42.0-1-g3138fc8ee",
+    "file": "mpv-x86_64-20261105-git-3138fc8eea.7z",
+    "url": "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/20261105/mpv-x86_64-20261105-git-3138fc8eea.7z",
+    "sha256": "89aa56f9769f81f783576183212e7b4802c91909ecf860b4468113cbfd106d93",
+    "strip": false,
+    "check": "mpv.exe",
+    "recipe_repo": "shinchiro/mpv-winbuild-cmake",
+    "recipe_commit": "bda10a2816ce9908d419b3f4b564227330457e76",
+    "built_at": "2026-11-05T00:00:02Z",
+    "exact_commits": {"mpv": "3138fc8ee", "ffmpeg": "baa68e68b", "libplacebo": "0e43522"}
+  },
+  "mirror": "https://github.com/tophe323/ClipShrink/releases/download/third-party-1.5/",
+  "extra_sources": [
+    {"name": "qt-everywhere-src-6.12.0", "group": "qt", "url": "https://download.qt.io/official_releases/qt/6.12/6.12.0/single/qt-everywhere-src-6.12.0.tar.xz"},
+    {"name": "pyside-setup-everywhere-src-6.12.0", "group": "qt", "url": "https://download.qt.io/official_releases/QtForPython/pyside6/PySide6-6.12.0-src/pyside-setup-everywhere-src-6.12.0.tar.xz"}
+  ],
+  "pypi_sources": ["pyinstaller==6.22.3"]
+}

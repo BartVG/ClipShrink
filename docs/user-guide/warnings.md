@@ -66,7 +66,8 @@ These reasons appear on the compare page and in reports.
 | Send originals to the Recycle Bin? | You started a delete. | Tick the box to confirm, or click **Keep them**. |
 | ⚠ N of these have a conversion below the recommended quality… | Extra paragraph in that dialog when a ticked file has a warning sign. | Compare those files first. |
 | Left in place | After a delete, files that were not removed, with a reason each. | Read the reason. |
-| Remove _H265 from names? | You started the rename. | Answer Yes or No. |
+| Remove the added tags from names? | You started the rename. | Answer Yes or No. |
+| Delete GoPro LRV files? | A scan found LRV files with their original video beside them. | Answer Yes to send them to the Recycle Bin, or No to keep them. See [GoPro LRV files](finding-videos.md#gopro-lrv-files). |
 | Left as they are | After a rename, files that were not renamed, with a reason each. | Read the reason. |
 
 Reasons a delete is refused, all shown next to the file name:

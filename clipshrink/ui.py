@@ -2,12 +2,12 @@
 import os, sys, threading, time
 from pathlib import Path
 from PySide6.QtCore import QObject, QPointF, QRectF, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QPainter, QPalette, QPen
+from PySide6.QtGui import QColor, QKeySequence, QPainter, QPalette, QPen, QShortcut
 from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox,
                                QButtonGroup, QFileDialog, QFrame, QGridLayout, QHBoxLayout, QHeaderView, QLabel, QMainWindow, QMessageBox,
                                QProgressBar, QPushButton, QSlider, QStackedWidget, QStyle, QStyledItemDelegate, QStyleOptionViewItem, QTableWidget, QTableWidgetItem,
                                QTextBrowser, QVBoxLayout, QWidget)
-from . import config, db, encode, reports, settings as app_settings, trash
+from . import config, db, encode, reports, scan, settings as app_settings, trash
 from .encode import Stopped
 from .engine import Converter
 from .estimate import estimate_savings
@@ -314,18 +314,14 @@ def result_cell(rec):
     return it
 
 
-class HelpDialog(QDialog):
-    def __init__(self, parent, text):
-        super().__init__(parent)
-        self.setWindowTitle("What \"no quality loss\" means")
-        self.resize(560, 420)
-        v = QVBoxLayout(self)
-        b = QTextBrowser()
-        b.setPlainText(text)
-        v.addWidget(b)
-        k = QDialogButtonBox(QDialogButtonBox.Close)
-        k.rejected.connect(self.reject)
-        v.addWidget(k)
+class StepLabel(QLabel):
+    """A step in the left pane. Clicking the current one leaves a side page."""
+    clicked = Signal()
+
+    def mouseReleaseEvent(self, ev):
+        if ev.button() == Qt.LeftButton and self.rect().contains(ev.position().toPoint()):
+            self.clicked.emit()
+        super().mouseReleaseEvent(ev)
 
 
 class DeleteDialog(QDialog):
@@ -397,6 +393,8 @@ class PlayerWindow(QDialog):
         self.timer.setInterval(200)
         self.timer.timeout.connect(self.tick)
         self.play_btn.clicked.connect(self.toggle)
+        # A window shortcut, so space means pause whichever button has the focus.
+        self.space = QShortcut(QKeySequence(Qt.Key_Space), self, self.toggle)
         self.back_btn.clicked.connect(lambda: self.do(lambda: self.player.step(False)))
         self.next_btn.clicked.connect(lambda: self.do(lambda: self.player.step(True)))
         self.detail_btn.toggled.connect(self.toggle_detail)
@@ -408,7 +406,9 @@ class PlayerWindow(QDialog):
         try:
             self.player = SideBySidePlayer(self.rec.source, self.rec.output, wid=int(self.video.winId()))
             self.player.start()
+            self.player.play()
             self.timer.start()
+            self.tick()
         except PlayerError as ex:
             QMessageBox.warning(self, "Could not play", str(ex))
 
@@ -474,6 +474,7 @@ class MainWindow(QMainWindow):
         self.stage = 0
         self.action_running = False
         self.result = None
+        self.session_sources = set()
         self.estimate = None
         self.converter = None
         self.scope = []
@@ -498,8 +499,9 @@ class MainWindow(QMainWindow):
         rv.addWidget(name)
         self.steps = []
         self.step_checks = []
-        for t in ("1  Find videos", "2  See the saving", "3  Convert", "4  Compare and clean up"):
-            lab = QLabel(t)
+        for n, t in enumerate(("1  Find videos", "2  See the saving", "3  Convert", "4  Compare and clean up")):
+            lab = StepLabel(t)
+            lab.clicked.connect(lambda n=n: self._step_clicked(n))
             lab.setObjectName("stepOff")
             row = QHBoxLayout(lab)
             row.setContentsMargins(0, 0, 12, 0)
@@ -530,7 +532,7 @@ class MainWindow(QMainWindow):
         self.why_btn = why
         why.setStyleSheet(side)
         why.setMinimumHeight(52)
-        why.clicked.connect(lambda: HelpDialog(self, self.quality_explanation()).exec())
+        why.clicked.connect(lambda: self.go(7))
         rv.addWidget(why)
         why.setText("What does \"no quality\nloss\" mean?")
         lay.addWidget(rail)
@@ -547,6 +549,8 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self.reports_page)
         self.settings_page = self._page_settings()
         self.stack.addWidget(self.settings_page)
+        self.quality_page = self._page_quality()
+        self.stack.addWidget(self.quality_page)
         self._apply_settings_view()
         self.go(0)
         QTimer.singleShot(200, self._offer_resume)
@@ -593,6 +597,12 @@ class MainWindow(QMainWindow):
             self.refresh_reports()
         if i == 6:
             self._refresh_settings_page()
+        for n, lab in enumerate(self.steps):
+            lab.setCursor(Qt.PointingHandCursor if i >= 4 and n == self.stage else Qt.ArrowCursor)
+
+    def _step_clicked(self, n):
+        if n == self.stage and self.stack.currentIndex() >= 4:
+            self.go(n)
 
     def _page(self, title, hint):
         p = QWidget()
@@ -671,7 +681,60 @@ class MainWindow(QMainWindow):
         threading.Thread(target=work, daemon=True).start()
 
     def _scan_done(self, res):
+        self._show_scan(res)
+        QTimer.singleShot(0, lambda: self._offer_lrv_cleanup(res))
+
+    def _offer_lrv_cleanup(self, res):
+        """GoPro previews take up space for nothing once the full video is there."""
+        if self.result is not res:
+            return
+        found = scan.lrv_files(res)
+        safe = [p for p in found if scan.lrv_original(p)]
+        if not safe:
+            return
+        total = sum(os.path.getsize(p) for p in safe if os.path.exists(p))
+        s = "s" if len(safe) != 1 else ""
+        text = (f"Found {len(safe)} GoPro LRV file{s} ({human_size(total)}).\n\n"
+                "An LRV file is a small, low-resolution copy that a GoPro records alongside each video, so the camera "
+                "and its phone app can show quick previews. You don't need it if you have the original video, which "
+                f"is beside each of these.\n\nSend {'them' if len(safe) != 1 else 'it'} to the Recycle Bin?")
+        if len(found) > len(safe):
+            n = len(found) - len(safe)
+            text += f"\n\n{n} other LRV file{'s' if n != 1 else ''} will stay, because the original video isn't beside {'them' if n != 1 else 'it'}."
+        ans = QMessageBox.question(self, "Delete GoPro LRV files?", text,
+                                   QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if ans == QMessageBox.Yes:
+            self._recycle_previews(safe)
+
+    def _recycle_previews(self, paths):
+        self.to_estimate.setEnabled(False)
+        self.pick_btn.setEnabled(False)
+        self.scan_bar.setRange(0, len(paths))
+        self.scan_bar.show()
+
+        def work():
+            def tick(i, n, _):
+                self.bridge.call.emit(lambda: (self.scan_bar.setRange(0, n), self.scan_bar.setValue(i)))
+            res = trash.recycle_previews(paths, on_progress=tick)
+            self.bridge.call.emit(lambda: self._previews_recycled(res))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _previews_recycled(self, res):
+        gone = set(res.deleted)
+        r = self.result
+        r.h264 = [f for f in r.h264 if f.path not in gone]
+        r.other = [f for f in r.other if f.path not in gone]
+        r.unreadable = [u for u in r.unreadable if u[0] not in gone]
+        self._show_scan(r)
+        text = f"{len(res.deleted)} LRV file{'s' if len(res.deleted) != 1 else ''} moved to the Recycle Bin."
+        if res.refused:
+            text += "\n\nLeft in place:\n" + "\n".join(f"{Path(p).name}: {why}" for p, why in res.refused)
+        QMessageBox.information(self, "Done", text)
+
+    def _show_scan(self, res):
         self.result = res
+        self.add_to_session(f.path for f in res.h264)
         self.scan_bar.hide()
         self.pick_btn.setEnabled(True)
         self.scan_table.blockSignals(True)
@@ -1036,6 +1099,7 @@ class MainWindow(QMainWindow):
 
     def start_batch(self, resume_paths=None):
         paths = resume_paths or [f.path for f in self.selected_files()]
+        self.add_to_session(paths)
         chosen = self.settings
         self.busy = True
         self.start_btn.setEnabled(False)
@@ -1192,7 +1256,7 @@ class MainWindow(QMainWindow):
         self.play_btn.clicked.connect(self.play_selected)
         row.addWidget(self.play_btn)
         row.addStretch(1)
-        self.rename_btn = QPushButton("Remove _H265 from names")
+        self.rename_btn = QPushButton("Remove the added tags from names")
         self.rename_btn.setEnabled(False)
         self.rename_btn.clicked.connect(self.rename_done_files)
         row.addWidget(self.rename_btn)
@@ -1220,14 +1284,15 @@ class MainWindow(QMainWindow):
         v.addLayout(row)
         return p
 
+    def add_to_session(self, paths):
+        """Compare and clean up lists only what was found or converted since the app opened."""
+        self.session_sources.update(str(p).lower() for p in paths)
+
+    def _in_session(self, recs):
+        return [r for r in recs if r.source.lower() in self.session_sources]
+
     def _records_for_view(self):
-        recs = db.read_records(self.db_path)
-        if self.folder:
-            pref = self.folder.lower().rstrip("\\") + "\\"
-            mine = [r for r in recs if r.source.lower().startswith(pref)]
-            if mine:
-                recs = mine
-        return sorted(recs, key=lambda r: r.source.lower())
+        return sorted(self._in_session(db.read_records(self.db_path)), key=lambda r: r.source.lower())
 
     def refresh_review(self):
         recs = self._records_for_view()
@@ -1256,12 +1321,12 @@ class MainWindow(QMainWindow):
         bad = [r for r in shown if r.status in ("kept_original", "failed", "below_bar")]
         self.problem_title.setText(f"Needs your attention ({len(bad)})" if bad else "Needs your attention: nothing")
         self.problems.setPlainText("\n\n".join(f"{Path(r.source).name}\n  {r.reason}" for r in bad)
-                                   or "Every conversion passed.")
+                                   or ("Every conversion passed." if shown else "No conversions from this session yet."))
         self._tick_changed()
-        n = len(trash.renamable(self.db_path))
+        n = len(self._in_session(trash.renamable(self.db_path)))
         self.rename_btn.setEnabled(bool(n))
-        tag = self._suffix_label()
-        self.rename_btn.setText(f"Remove {tag} from {n} name{'s' if n != 1 else ''}…" if n else f"Remove {tag} from names")
+        self.rename_btn.setText(f"Remove the added tags from {n} name{'s' if n != 1 else ''}…" if n
+                                else "Remove the added tags from names")
         self.rename_btn.setToolTip("Available after an original has been sent to the Recycle Bin.")
         for row in range(self.review.rowCount()):
             rec = self._review_rec(row)
@@ -1387,14 +1452,11 @@ class MainWindow(QMainWindow):
             text += "\n\nLeft in place:\n" + "\n".join(f"{Path(p).name}: {why}" for p, why in res.refused)
         QMessageBox.information(self, "Done", text)
 
-    def _suffix_label(self):
-        return config.CODEC_SUFFIX[self.settings.codec]
-
     def rename_done_files(self):
-        recs = trash.renamable(self.db_path)
+        recs = self._in_session(trash.renamable(self.db_path))
         if not recs:
             return
-        ans = QMessageBox.question(self, f"Remove {self._suffix_label()} from names?",
+        ans = QMessageBox.question(self, "Remove the added tags from names?",
                                    f"{len(recs)} conversion{'s' if len(recs) != 1 else ''} whose original is in the "
                                    f"Recycle Bin will take the original's name, for example "
                                    f"{Path(recs[0].source).name}.\n\nOnly the name changes. If you later restore an "
@@ -1414,6 +1476,20 @@ class MainWindow(QMainWindow):
         if res.refused:
             text += "\n\nLeft as they are:\n" + "\n".join(f"{Path(p).name}: {why}" for p, why in res.refused)
         QMessageBox.information(self, "Done", text)
+
+    # --- What "no quality loss" means --------------------------------------
+    def _page_quality(self):
+        p, v = self._page("What \"no quality loss\" means", "")
+        b = QTextBrowser()
+        b.setPlainText(self.quality_explanation())
+        v.addWidget(b, 1)
+        row = QHBoxLayout()
+        back = QPushButton("←  Back")
+        back.clicked.connect(lambda: self.go(self.stage))
+        row.addWidget(back)
+        row.addStretch(1)
+        v.addLayout(row)
+        return p
 
     # --- Settings ---------------------------------------------------------
     def _page_settings(self):
@@ -1524,7 +1600,8 @@ class MainWindow(QMainWindow):
         size = "" if s.max_resolution == "original" else f", at most {self.resolution_box.currentText()}"
         self.est_using.setText(f"{config.CODEC_NAMES[s.codec]}{size}. Change this in Settings.")
         self.conv_hint.show()
-        self.conv_hint.setText(f"Each conversion is saved beside its original with {config.CODEC_SUFFIX[s.codec]} added to "
+        shrunk = "" if s.max_resolution == "original" else f" ({config.output_suffix(s.codec, s.max_resolution)} if it was shrunk)"
+        self.conv_hint.setText(f"Each conversion is saved beside its original with {config.CODEC_SUFFIX[s.codec]}{shrunk} added to "
                                "the name. Originals are only read. You can pause at any time, and if the PC crashes, "
                                "just reopen this app.")
 

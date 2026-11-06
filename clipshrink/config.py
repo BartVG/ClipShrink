@@ -1,6 +1,6 @@
 """Fixed rules of the tool. These numbers are the promise made to the user."""
 APP_NAME = "ClipShrink"
-VERSION = "1.4.1"
+VERSION = "1.5"
 PROJECT_URL = "https://github.com/tophe323/ClipShrink"
 VMAF_MEAN_MIN = 95.0     # average score over every frame
 VMAF_P1_MIN = 90.0       # the worst 1% of frames must still reach this
@@ -39,10 +39,17 @@ LADDERS = {
     "av1_nvenc": [44, 42, 40, 38, 36, 34, 32, 28, 24],
 }
 CODEC_NAMES = {"h265": "H.265", "av1": "AV1"}
-CODEC_SUFFIX = {"h265": "_H265", "av1": "_AV1"}
+CODEC_SUFFIX = {"h265": "_(h265)", "av1": "_(av1)"}
+SIZE_SUFFIX = {"4k": "_(4k)", "1080p": "_(1080p)", "720p": "_(720p)"}
+OLD_SUFFIXES = ("_H265", "_AV1")     # names used before 1.5
 ENCODER_CODEC = {"x265": "h265", "nvenc": "h265", "svtav1": "av1", "av1_nvenc": "av1"}
 ENCODER_NAMES = {"x265": "processor", "nvenc": "NVIDIA", "svtav1": "processor", "av1_nvenc": "NVIDIA"}
 RESOLUTIONS = {"original": None, "4k": (3840, 2160), "1080p": (1920, 1080), "720p": (1280, 720)}
+
+
+def output_suffix(codec, size=None):
+    """What a conversion adds to its name, for example _(1080p)_(h265)."""
+    return SIZE_SUFFIX.get(size, "") + CODEC_SUFFIX[codec]
 
 
 def target_size(width, height, choice):

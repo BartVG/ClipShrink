@@ -13,7 +13,7 @@ def rows_of(path):
 
 def saved_record(db, name, status="verified", before=1000, after=400, mean=97.0, p1=92.0, folder="C:/Videos/Trip"):
     database.save(db, database.Record(source=f"{folder}/{name}", status=status, source_size=before, output_size=after,
-                                      vmaf_mean=mean, vmaf_p1=p1, output=f"{folder}/{name}_H265.mp4"))
+                                      vmaf_mean=mean, vmaf_p1=p1, output=f"{folder}/{name}_(h265).mp4"))
 
 
 def write_report(workspace, names=("a.mp4",)):

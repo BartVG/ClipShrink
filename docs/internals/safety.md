@@ -4,7 +4,7 @@ The safety model is simple: ClipShrink never changes an original, and it never r
 
 ## While converting
 
-- **Originals are only read.** The conversion is written beside the original as `<name>_H265` or `<name>_AV1` plus an extension: the same for `.mp4`, `.mov` and `.m4v`, `.mp4` for `.lrv`, and `.mkv` for other types. With AV1, `.mov` also becomes `.mp4`. If that name exists, a number is added (`_H265_2`, and so on), so nothing is overwritten.
+- **Originals are only read.** The conversion is written beside the original as `<name>_(h265)` or `<name>_(av1)`, with a size tag such as `_(1080p)` first if it was shrunk, plus an extension: the same for `.mp4`, `.mov` and `.m4v`, `.mp4` for `.lrv`, and `.mkv` for other types. With AV1, `.mov` also becomes `.mp4`. If that name exists, a number is added (`_(h265)_2`, and so on), so nothing is overwritten.
 - **Delivery is staged.** The file is copied to a `.part` file and renamed only when complete, then given the original's created and modified times.
 - **The original is re-checked.** If its size or modified time changed while it was being converted, the file is marked failed and nothing is delivered.
 - **Bad results are refused.** A result that is not smaller, or does not match the original, is never delivered. See [Quality](quality.md).
@@ -33,9 +33,13 @@ A single dialog, "Send originals to the Recycle Bin?", must be accepted: its "Se
 
 ### Renaming
 
-The optional "Remove _H265" or "Remove _AV1" step renames a conversion to its original's file name once the original is in the Recycle Bin. It uses a plain rename that never overwrites, and refuses if the conversion changed or the target name is taken.
+The optional "Remove the added tags" step renames a conversion to its original's file name once the original is in the Recycle Bin. It uses a plain rename that never overwrites, and refuses if the conversion changed or the target name is taken.
 
 ## Next steps
 
 - [Comparing and cleaning up in the app](../user-guide/compare-and-clean-up.md)
 - [Pause, resume and crash recovery](resume.md)
+
+## GoPro LRV files
+
+The optional LRV clean-up only touches files ending in `.lrv`, sends them to the Recycle Bin, and checks just before each one that its full video is still beside it. If that video has gone, the preview stays. See [GoPro LRV files](../user-guide/finding-videos.md#gopro-lrv-files).

@@ -22,7 +22,9 @@ Files that were already kept as original or failed are not retried on resume. Ho
 
 ## Where the results go
 
-Each conversion is saved next to its original with `_H265` added to the name, for example `Holiday.mp4` becomes `Holiday_H265.mp4`. If that name is taken, ClipShrink uses `Holiday_H265_2.mp4`, then `_3`, and so on. The original is only ever read.
+Each conversion is saved next to its original with `_(h265)` or `_(av1)` added to the name, for example `Holiday.mp4` becomes `Holiday_(h265).mp4`. A video that was shrunk also gets its size first: `Holiday_(4k)_(h265).mp4`, `Holiday_(1080p)_(av1).mp4` or `Holiday_(720p)_(h265).mp4`. A video already within the chosen size gets no size tag. If that name is taken, ClipShrink uses `Holiday_(h265)_2.mp4`, then `_3`, and so on. The original is only ever read.
+
+Conversions made before version 1.5 keep their `_H265` or `_AV1` names.
 
 | Original | Result |
 | --- | --- |

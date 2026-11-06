@@ -33,7 +33,7 @@ def test_av1_conversion_passes_every_check(name, encoder, get_clip, workspace):
     before, times = sha256(src), get_times(src)
     rec, _ = convert(src, workspace, encoder, "av1")
     assert rec.status == "verified", f"{rec.status}: {rec.reason}"
-    assert Path(rec.output).name == f"{name}_AV1.mp4"
+    assert Path(rec.output).name == f"{name}_(av1).mp4"
     assert_conversion_is_good(src, rec.output, workspace, codec="av1")
     assert sha256(src) == before and get_times(src) == times
 
@@ -61,7 +61,7 @@ def test_h265_is_still_the_default(get_clip, workspace):
     c = Converter(db_path=workspace / "work" / "s.db", work_dir=workspace / "work" / "t", encoder="x265")
     c.add_files([src])
     c.run()
-    assert Path(c.record(src).output).name == "a_H265.mp4" and c.record(src).codec == "h265"
+    assert Path(c.record(src).output).name == "a_(h265).mp4" and c.record(src).codec == "h265"
 
 
 def test_av1_original_can_be_deleted_and_renamed(get_clip, workspace):

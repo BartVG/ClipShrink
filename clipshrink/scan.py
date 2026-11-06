@@ -85,6 +85,35 @@ def walk_videos(root):
                 yield e.path
 
 
+def lrv_files(res):
+    """Every GoPro preview a scan came across, whatever could be read of it."""
+    paths = [f.path for f in res.h264 + res.other] + [p for p, _ in res.unreadable]
+    return sorted(p for p in paths if Path(p).suffix.lower() == ".lrv")
+
+
+def lrv_original(path):
+    """The full video beside a GoPro preview, or None. GL010123.LRV belongs to
+    GH010123 or GX010123, older cameras use the same name, and either may
+    already be a conversion such as GX010123_(h265).mp4."""
+    p = Path(path)
+    stem = p.stem.lower()
+    wanted = {stem}
+    if stem.startswith("gl"):
+        wanted |= {"gh" + stem[2:], "gx" + stem[2:]}
+    try:
+        with os.scandir(p.parent) as it:
+            names = [e.name for e in it if e.is_file()]
+    except OSError:
+        return None
+    for name in names:
+        n = Path(name)
+        if n.suffix.lower() in config.VIDEO_EXTS and n.suffix.lower() != ".lrv":
+            other = n.stem.lower()
+            if other in wanted or any(other.startswith(w + "_") for w in wanted):
+                return str(p.with_name(name))
+    return None
+
+
 def scan_folder(root, on_progress=None, should_stop=None):
     res = ScanResult()
     paths = sorted(walk_videos(root))

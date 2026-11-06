@@ -34,7 +34,7 @@ def _verified_row(workspace, name):
     import os
     from clipshrink import db
     a = workspace / "videos" / f"{name}.mp4"
-    b = workspace / "videos" / f"{name}_H265.mp4"
+    b = workspace / "videos" / f"{name}_(h265).mp4"
     a.write_bytes(b"x" * 1000)
     b.write_bytes(b"y" * 500)
     sa, sb = os.stat(a), os.stat(b)
@@ -53,6 +53,8 @@ def dark_review(workspace, qapp_instance):
     _verified_row(workspace, "one")
     _verified_row(workspace, "two")
     w = MainWindow(db_path=workspace / "work" / "s.db", work_dir=workspace / "work" / "t")
+    from clipshrink import db
+    w.add_to_session(r.source for r in db.read_records(workspace / "work" / "s.db"))
     w.resize(1100, 700)
     w.show()
     w.go(3)
@@ -199,7 +201,7 @@ def test_ticks_stay_on_the_right_files_with_skipped_rows_present(dark_review, wo
 def test_version_is_one_place_and_shown(window):
     from pathlib import Path
     from clipshrink import config
-    assert config.VERSION == "1.4.1"
+    assert config.VERSION == "1.5"
     assert config.VERSION in window.windowTitle()
     iss = (Path(__file__).resolve().parents[1] / "installer" / "clipshrink.iss").read_text(encoding="utf-8")
     assert f"AppVersion={config.VERSION}" in iss
@@ -235,7 +237,7 @@ def _review_with(workspace, qapp_instance, rows):
     for name, folder, before, after, mean, p1, status in rows:
         d = workspace / "videos" / folder
         d.mkdir(parents=True, exist_ok=True)
-        a, b = d / name, d / f"{Path(name).stem}_H265.mp4"
+        a, b = d / name, d / f"{Path(name).stem}_(h265).mp4"
         a.write_bytes(b"x" * before)
         b.write_bytes(b"y" * after)
         sa, sb = os.stat(a), os.stat(b)
@@ -243,6 +245,7 @@ def _review_with(workspace, qapp_instance, rows):
                                output=str(b), output_size=sb.st_size, output_mtime_ns=sb.st_mtime_ns,
                                vmaf_mean=mean, vmaf_p1=p1, reason="VMAF below the bar" if status == "below_bar" else ""))
     w = MainWindow(db_path=dbp, work_dir=workspace / "work" / "t")
+    w.add_to_session(r.source for r in db.read_records(dbp))
     w.resize(1200, 760)
     w.show()
     w.go(3)
@@ -414,7 +417,7 @@ def test_about_page_says_what_this_is(window):
     window.about_btn.click()
     t = window.about_text().replace("\n", " ")
     assert window.stack.currentWidget() is window.about_page
-    assert "ClipShrink" in t and "1.4.1" in t and "GPL" in t and "github.com/tophe323/ClipShrink" in t
+    assert "ClipShrink" in t and "1.5" in t and "GPL" in t and "github.com/tophe323/ClipShrink" in t
     assert "FFmpeg" in t and "mpv" in t
 
 

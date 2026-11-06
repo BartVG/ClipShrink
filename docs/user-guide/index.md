@@ -9,9 +9,9 @@ ClipShrink works through four numbered steps in the sidebar, plus a **Reports & 
 3. **Convert.** Each video is converted, then measured against its original. You can pause, and you can reopen the app after a crash. See [Converting](converting.md).
 4. **Compare and clean up.** Play an original beside its conversion, and optionally send originals to the Recycle Bin. See [Compare and clean up](compare-and-clean-up.md).
 
-The **Reports & Statistics** page, opened from the sidebar, keeps totals and a report for every batch. See [Reports & Statistics](reports.md).
+The **Reports & Statistics** page, opened from the sidebar, keeps totals and a report for every batch. To leave it, or any other page opened from the sidebar, click **Back** or the step you are on in the left pane. See [Reports & Statistics](reports.md).
 
-Your originals are only read during conversion. Step 4 is the only place where your original videos are removed, and it is optional.
+Your originals are only read during conversion. Apart from the optional [GoPro LRV clean-up](finding-videos.md#gopro-lrv-files) of preview files, step 4 is the only place where your original videos are removed, and it is optional.
 
 ## Everything in this section
 

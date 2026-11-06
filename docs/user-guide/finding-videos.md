@@ -33,12 +33,12 @@ Only H.264 videos can be converted, and most are ticked for you.
 | What you see in State | Ticked? | Why |
 | --- | --- | --- |
 | `Ready` | Yes | H.264 video not converted before |
-| `GoPro low-res preview, off by default` | No | `.lrv` files are GoPro's low-resolution preview versions of clips. Tick them only if you want them shrunk too. |
+| `GoPro low-res preview, off by default` | No | `.lrv` files are GoPro's low-resolution preview versions of clips. Tick them only if you want them shrunk too. See [GoPro LRV files](#gopro-lrv-files). |
 | `Verified` or `⚠ Below the bar` | No | You already converted this file (same size), so it is not queued again by default. Other earlier results (such as `Original kept`) stay ticked. |
 | `Already H.265, skipped` | Cannot be ticked | The video is already H.265. AV1 and other formats say so the same way. |
 | `Already <CODEC>, skipped` | Cannot be ticked | Any other format, for example `Already VP9, skipped`. |
 
-Skipped rows are greyed and show a dash instead of a tick box. If a skipped file is a conversion ClipShrink made earlier, the State ends with "(converted by this tool)". That is why your own `_H265` files show up as already H.265 and are not converted a second time.
+Skipped rows are greyed and show a dash instead of a tick box. If a skipped file is a conversion ClipShrink made earlier, the State ends with "(converted by this tool)". That is why your own `_(h265)` files show up as already H.265 and are not converted a second time.
 
 Files that cannot be read at all are not listed as rows. They are counted in the note under the list, with the first three names.
 
@@ -54,3 +54,14 @@ Tick or untick any rows you like. **Next: see the saving →** stays disabled un
 ## Next steps
 
 - [See the saving](estimates.md) before you convert anything.
+
+## GoPro LRV files
+
+An LRV file is a small, low-resolution copy that a GoPro records alongside each video, so the camera and its phone app can show quick previews. You don't need it if you have the original video.
+
+When a scan finds LRV files with their original video beside them, a pop-up tells you how many there are and how much space they take, and asks whether to send them to the Recycle Bin:
+
+- **Yes** sends them to the Recycle Bin and removes them from the list. Each one is checked again just before it goes.
+- **No** changes nothing. They stay on the list, unticked.
+
+A preview counts as having its original if a video of the same name is in the same folder: `GL010123.LRV` goes with `GH010123` or `GX010123`, and `GOPR0123.LRV` with `GOPR0123`. A conversion of that video, such as `GX010123_(h265).mp4`, also counts. An LRV file with no such video beside it is always kept, and if there are only files like that, no pop-up appears.

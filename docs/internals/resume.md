@@ -58,7 +58,7 @@ When you add files that are already in the database, a file counts as unchanged 
 
 ## Work and `.part` files
 
-Encoder output is written under the work folder (`%LOCALAPPDATA%\ClipShrink\work` in the app). The one partial file beside the original is `<name>_H265<ext>.part` (or `_AV1`), written during the final copy and renamed when complete.
+Encoder output is written under the work folder (`%LOCALAPPDATA%\ClipShrink\work` in the app). The one partial file beside the original is `<name>_(h265)<ext>.part` (or `_(av1)`, with a size tag if it was shrunk), written during the final copy and renamed when complete.
 
 ## Next steps
 

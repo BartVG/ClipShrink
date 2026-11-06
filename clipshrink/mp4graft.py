@@ -69,13 +69,44 @@ class Track:
     chunk_starts: list      # seconds, used for interleaving
     timescale: int
     media_duration: int
+    sample_bytes: tuple = (1, 1)    # what one listed size really covers, as a fraction
 
     def chunk_bytes(self):
         out, i = [], 0
+        num, den = self.sample_bytes
         for n in self.samples_per_chunk:
-            out.append(sum(self.sizes[i:i + n]))
+            listed = sum(self.sizes[i:i + n]) * num
+            if listed % den:
+                raise ValueError("audio chunk is not a whole number of packets")
+            out.append(listed // den)
             i += n
         return out
+
+
+_PCM_ENTRIES = {b"sowt", b"twos", b"raw ", b"in24", b"in32", b"fl32", b"fl64", b"lpcm", b"NONE"}
+_LOG_PCM_ENTRIES = {b"alaw", b"ulaw"}
+
+
+def _quicktime_sample_bytes(raw, entry):
+    """QuickTime audio may list every sample in stsz as size 1, whatever it really
+    takes up. The true size is in the sound description at `entry`, the stsd entry."""
+    fourcc = raw[entry + 4:entry + 8]
+    version = struct.unpack_from(">H", raw, entry + 16)[0]
+    channels, bits = struct.unpack_from(">HH", raw, entry + 24)
+    if version == 1:
+        per_packet, _, per_frame, _ = struct.unpack_from(">IIII", raw, entry + 36)
+        num, den = per_frame, per_packet
+    elif version == 2:
+        num, den = struct.unpack_from(">II", raw, entry + 64)
+    elif fourcc in _PCM_ENTRIES:
+        num, den = channels * bits // 8, 1
+    elif fourcc in _LOG_PCM_ENTRIES:
+        num, den = channels, 1
+    else:
+        num, den = 0, 0
+    if not num or not den:
+        raise ValueError(f"audio format {fourcc!r} does not say how big its samples are")
+    return num, den
 
 
 def _parse_track(raw):
@@ -136,7 +167,8 @@ def _parse_track(raw):
             todo -= step
     tk = _find(raw, 8, te, b"tkhd")
     tid = struct.unpack_from(">I", raw, tk[1] + (20 if raw[tk[1]] else 12))[0]
-    return Track(raw, handler, entry, tid, sizes, offs, per, starts, timescale, media_dur)
+    sample_bytes = _quicktime_sample_bytes(raw, sd[1] + 8) if handler == b"soun" and fixed == 1 else (1, 1)
+    return Track(raw, handler, entry, tid, sizes, offs, per, starts, timescale, media_dur, sample_bytes)
 
 
 def parse_tracks(moov):

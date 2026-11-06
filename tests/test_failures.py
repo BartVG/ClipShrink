@@ -24,7 +24,7 @@ def test_below_the_bar_is_converted_flagged_and_original_untouched(get_clip, wor
     rec = run(src, workspace, ladder=[51])
     assert rec.status == "below_bar"
     assert "VMAF" in rec.reason and rec.vmaf_mean is not None and rec.vmaf_mean < 95
-    assert only_videos(workspace / "videos") == ["a.mp4", "a_H265.mp4"]
+    assert only_videos(workspace / "videos") == ["a.mp4", "a_(h265).mp4"]
     assert sha256(src) == before and get_times(src) == times
     # the score shown is the real one, measured independently
     v = measure_vmaf(rec.output, src, workspace)

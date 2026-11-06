@@ -89,6 +89,26 @@ def _send_to_recycle_bin(path):
     return code == 0 and not op.fAnyOperationsAborted and not os.path.exists(path)
 
 
+def recycle_previews(paths, on_progress=None):
+    """Sends GoPro previews to the Recycle Bin, only while their full video is still beside them."""
+    res = DeleteResult()
+    paths = list(paths)
+    for i, p in enumerate(paths):
+        if on_progress:
+            on_progress(i, len(paths), p)
+        if Path(p).suffix.lower() != ".lrv":
+            res.refused.append((p, "it is not an LRV file"))
+        elif not scan.lrv_original(p):
+            res.refused.append((p, "its full video is not beside it"))
+        elif _send_to_recycle_bin(p):
+            res.deleted.append(p)
+        else:
+            res.refused.append((p, "Windows did not move it to the Recycle Bin, so it was left in place"))
+    if on_progress:
+        on_progress(len(paths), len(paths), "")
+    return res
+
+
 def why_not_deletable(rec, deep=False):
     """Returns the reason the original must stay, or None if it may go."""
     if rec is None:

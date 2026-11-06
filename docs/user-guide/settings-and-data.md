@@ -15,8 +15,8 @@ Other graphics cards aren't supported yet, so those PCs use the processor.
 
 | Choice | What it does |
 | --- | --- |
-| H.265 (recommended) | The default. It plays on most devices from about 2016 onwards. Files end in `_H265`. |
-| AV1 | Files are usually smaller, but they play on fewer devices. Files end in `_AV1`, and a `.mov` original becomes `.mp4`. |
+| H.265 (recommended) | The default. It plays on most devices from about 2016 onwards. Files end in `_(h265)`. |
+| AV1 | Files are usually smaller, but they play on fewer devices. Files end in `_(av1)`, and a `.mov` original becomes `.mp4`. |
 
 On one real 26-second 1080p clip of 101.4 MB, each of these cleared the quality bar:
 
@@ -59,7 +59,7 @@ Everything stays on your PC; nothing is sent anywhere.
 | History database | `%LOCALAPPDATA%\ClipShrink\state.db` | Only with the app closed (delete any `state.db-*` files next to it too). You lose the record of earlier conversions: the statistics, the Compare and clean up list, and the "Continue where you left off?" offer. Videos you already converted show as ready again and would be converted a second time (as `_H265_2`). Your videos themselves are not affected. |
 | Working files | `%LOCALAPPDATA%\ClipShrink\work` | Yes, with the app closed. It holds temporary files only. It is emptied after each file and when a conversion batch starts or ends; the test-encode folder is cleared after each estimate. |
 | Reports | `%LOCALAPPDATA%\ClipShrink\reports` | Yes; the batch then no longer appears on the Reports & Statistics page. One CSV file per batch, named like `report_2026-11-06_141500.csv`. See [Reports & Statistics](reports.md). |
-| Your conversions | Beside each original, ending in `_H265` or `_AV1` | These are your results. Delete them only if you want to lose them. |
+| Your conversions | Beside each original, ending in `_(h265)` or `_(av1)`, or `_H265` or `_AV1` before version 1.5 | These are your results. Delete them only if you want to lose them. |
 
 If your account has no `LOCALAPPDATA` folder, ClipShrink uses a `ClipShrink` folder in your home folder instead.
 

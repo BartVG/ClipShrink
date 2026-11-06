@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.5 - 2026-11-06
+
+### Fixed
+- **Broken sound in some MOV files.** Cameras such as Nikon can store uncompressed (PCM) sound in a way ClipShrink misread, so it copied only a quarter of the sound and the result played as loud noise. The check made the same mistake, so these conversions were marked Verified. The picture was not affected. This applies to every version from 1.1 to 1.4.1. If you converted such files, listen to them, and keep their originals until you have. Conversions with AAC sound, which most phones and GoPro cameras use, were not affected.
+
+### Added
+- **GoPro LRV clean-up.** When Find videos finds LRV preview files with their original video beside them, a pop-up explains what they are and offers to send them to the Recycle Bin. An LRV file with no original beside it is always kept.
+
+### Changed
+- **New file names.** Conversions now end in `_(h265)` or `_(av1)`. A shrunk one also gets its size, for example `_(1080p)_(h265)`. Files you already converted keep their names.
+- **Compare and clean up lists this session only.** It shows the videos found or converted since you opened the app, not your whole history. Reports & Statistics still covers everything.
+- **The side-by-side player starts by itself**, and the space bar pauses and resumes it, whichever button is highlighted.
+- **Click the current step to go back.** From Settings, About, Reports & Statistics or What does "no quality loss" mean?, click the step you are on in the left pane. The quality explanation is now a page instead of a separate window.
+
 ## 1.4.1 - 2026-11-06
 
 ### Fixed

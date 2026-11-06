@@ -48,16 +48,16 @@ Before anything converts, the app makes short test encodes from your own files a
 ![See the saving page](docs/images/2-see-the-saving.png)
 
 ### 3. Convert
-Each conversion is saved beside its original with `_H265` added to the name. You can pause at any time. If your PC crashes, reopen the app and it continues, skipping finished files.
+Each conversion is saved beside its original with `_(h265)` added to the name, or `_(av1)` for AV1. A shrunk one also gets its size, for example `_(1080p)_(h265)`. You can pause at any time. If your PC crashes, reopen the app and it continues, skipping finished files.
 
 ![Convert page](docs/images/3-convert.png)
 
 ### 4. Compare and clean up
-Play any original beside its conversion, in sync, with frame stepping and a 100% zoom. Left is the original and right is the conversion.
+Play any original beside its conversion, in sync, with frame stepping and a 100% zoom. It starts by itself, and the space bar pauses it. Left is the original and right is the conversion. The list shows the videos from this session.
 
 ![Side by side playback of a snowy mountain view, identical on both sides](docs/images/side-by-side.jpg)
 
-Click any column title to sort. **Select All** and **Select Recommended** tick files for you, and Recommended leaves out anything with a warning sign. When you're happy, you can send originals to the Recycle Bin, then remove `_H265` from the new names. Both steps are optional, ask you to confirm and show a progress bar.
+Click any column title to sort. **Select All** and **Select Recommended** tick files for you, and Recommended leaves out anything with a warning sign. When you're happy, you can send originals to the Recycle Bin, then remove the added tags from the new names. Both steps are optional, ask you to confirm and show a progress bar.
 
 ### Settings
 The defaults suit most people. If you want, you can choose the graphics card or the processor, H.265 or AV1, and a largest size. Shrinking loses detail for good, so those conversions are labelled Resized, and they're checked against a shrunken copy of the original. You can also show an Encoding column with the format, quality setting, resolution and bitrate.

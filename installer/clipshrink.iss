@@ -1,7 +1,7 @@
 ; Per-user install: no administrator password, no separate downloads.
 [Setup]
 AppName=ClipShrink
-AppVersion=1.4.1
+AppVersion=1.5
 AppPublisher=ClipShrink
 DefaultDirName={localappdata}\Programs\ClipShrink
 DefaultGroupName=ClipShrink

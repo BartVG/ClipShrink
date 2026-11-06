@@ -6,6 +6,9 @@
 ??? question "Why was a file skipped?"
     The scan only converts H.264 videos. Anything else is shown greyed out, for example "Already H.265, skipped". Files that could not be read are listed in the note under the table. `.lrv` files (GoPro low-res previews) and files you already converted are listed but not ticked by default; tick them if you want them.
 
+??? question "Where did my earlier conversions go on Compare and clean up?"
+    That page only lists the videos found or converted since you opened the app. To work on an earlier conversion, choose its folder again on Find videos: a video whose original is still there comes back on the list. Your whole history stays in Reports & Statistics.
+
 ??? question "Why was the original kept?"
     ClipShrink refuses a result that is not smaller than the original, or that does not match it (for example different audio or camera info). The exact reason shows as a tooltip in the Result column and in the "Needs your attention" box. See [Warnings and messages](warnings.md).
 
@@ -19,7 +22,7 @@
     In `%LOCALAPPDATA%\ClipShrink\reports`. The **Reports & Statistics** page has an **Open reports folder** button. See [Reports & Statistics](reports.md).
 
 ??? question "Where are the converted files?"
-    Beside each original, with `_H265` added to the name. Files of any type other than `.mp4`, `.mov`, `.m4v` and `.lrv` are written as `.mkv`, and `.lrv` files become `.mp4`.
+    Beside each original, with `_(h265)` or `_(av1)` added to the name, and the size too if it was shrunk, for example `_(1080p)_(h265)`. Files of any type other than `.mp4`, `.mov`, `.m4v` and `.lrv` are written as `.mkv`, and `.lrv` files become `.mp4`.
 
 ??? question "The player shows an error. What now?"
     Messages such as "the video player could not open these files" or "the video player stopped" appear in a box. Close the player window and open the pair again. Both the original and the conversion must still be on disk, and the conversion must be verified or have a warning sign.

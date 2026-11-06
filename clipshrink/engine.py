@@ -19,12 +19,22 @@ def sha256_file(path, checkpoint=None):
                 checkpoint()
 
 
-def output_path_for(src, codec="h265"):
+def output_path_for(src, codec="h265", size=None):
     src = Path(src)
     keep = (".mp4", ".m4v") if codec == "av1" else (".mp4", ".mov", ".m4v")
     ext = src.suffix if src.suffix.lower() in keep else (
         ".mp4" if src.suffix.lower() in (".lrv", ".mov") else ".mkv")
-    return src.with_name(f"{src.stem}{config.CODEC_SUFFIX[codec]}{ext}")
+    return src.with_name(f"{src.stem}{config.output_suffix(codec, size)}{ext}")
+
+
+def _part_files(src):
+    """Every name a half-written conversion of this file could have."""
+    for codec in config.CODEC_SUFFIX:
+        ext = output_path_for(src, codec).suffix
+        for size in (None, *config.SIZE_SUFFIX):
+            yield Path(str(output_path_for(src, codec, size)) + ".part")
+        for old in config.OLD_SUFFIXES:
+            yield Path(src).with_name(f"{Path(src).stem}{old}{ext}.part")
 
 
 def fingerprint_matches(rec):
@@ -73,8 +83,8 @@ class Converter:
         for r in db.read_records(self.db_path, "encoding"):
             r.status = "pending"
             db.save(self.db_path, r)
-            for codec in config.CODEC_SUFFIX:
-                Path(str(output_path_for(r.source, codec)) + ".part").unlink(missing_ok=True)
+            for part in _part_files(r.source):
+                part.unlink(missing_ok=True)
         if self.work_dir.exists():
             for d in self.work_dir.glob("job_*"):
                 shutil.rmtree(d, ignore_errors=True)
@@ -193,7 +203,8 @@ class Converter:
             db.save(self.db_path, rec)
         finally:
             shutil.rmtree(work, ignore_errors=True)
-            Path(str(output_path_for(src, self.codec)) + ".part").unlink(missing_ok=True)
+            for part in _part_files(src):
+                part.unlink(missing_ok=True)
 
     def _finish_kept(self, rec, v):
         rec.status = "kept_original"
@@ -328,10 +339,11 @@ class Converter:
         if (st.st_size, st.st_mtime_ns) != src_stat:
             raise RuntimeError("the original changed while it was being converted")
         digest = sha256_file(built, gate.checkpoint)
-        dest = output_path_for(rec.source, self.codec)
+        size = self.max_resolution if config.target_size(info.width, info.height, self.max_resolution) else None
+        dest = output_path_for(rec.source, self.codec, size)
         n = 2
         while dest.exists():
-            dest = dest.with_name(f"{Path(rec.source).stem}{config.CODEC_SUFFIX[self.codec]}_{n}{dest.suffix}")
+            dest = dest.with_name(f"{Path(rec.source).stem}{config.output_suffix(self.codec, size)}_{n}{dest.suffix}")
             n += 1
         part = Path(str(dest) + ".part")
         with open(built, "rb") as a, open(part, "wb") as b:

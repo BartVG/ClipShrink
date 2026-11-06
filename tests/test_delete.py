@@ -140,7 +140,7 @@ def test_google_drive_warning_is_gone():
     assert not hasattr(trash, "GOOGLE_DRIVE_WARNING")
 
 
-# --- Removing _H265 from the name, only after the original has gone
+# --- Removing the added tags from the name, only after the original has gone
 def test_rename_refused_while_original_exists(verified):
     from clipshrink.trash import remove_suffix, renamable
     src, db, c = verified

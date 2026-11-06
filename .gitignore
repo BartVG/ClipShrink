@@ -27,3 +27,6 @@ docs/check_history.md
 
 # Documentation build output
 site/
+
+# Clips and notes kept while looking into a bug
+tests/audio_issue/

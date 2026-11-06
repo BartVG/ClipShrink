@@ -45,3 +45,7 @@ When a smaller size is chosen in Settings, the video track's display size change
 
 - [How a file is verified](quality.md)
 - [The pipeline overview](index.md)
+
+## Uncompressed sound in QuickTime files
+
+QuickTime files can list every uncompressed (PCM) sound sample as size 1, whatever it really takes up, and give the real size in the sound description. A 16-bit stereo sample takes 4 bytes. Since 1.5, the writer and the track comparison both read that real size. If a track lists size 1 and its format doesn't give the real size, the conversion is refused and the original is kept. Before 1.5, only a quarter of this sound was copied, as described in the [changelog](../project/changelog.md).
