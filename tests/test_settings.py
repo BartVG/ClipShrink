@@ -74,15 +74,21 @@ def test_encoder_choice_left_the_saving_page(win):
     assert not hasattr(win, "encoder_box")
 
 
-def test_controls_show_the_defaults(win):
+def test_controls_show_the_defaults(win, monkeypatch):
+    from clipshrink import encode
+    monkeypatch.setattr(encode, "encoder_available", lambda name: True)     # a PC with a working card
+    win._apply_settings_view()
     assert win.hardware_box.currentData() == "gpu"
     assert win.codec_box.currentData() == "h265"
     assert win.resolution_box.currentData() == "original"
     assert not win.details_box.isChecked()
 
 
-def test_choices_are_saved_at_once(win, workspace):
+def test_choices_are_saved_at_once(win, workspace, monkeypatch):
+    from clipshrink import encode
     from clipshrink.settings import load
+    monkeypatch.setattr(encode, "encoder_available", lambda name: True)     # a PC with a working card
+    win._apply_settings_view()
     _pick(win.codec_box, "av1")
     _pick(win.hardware_box, "cpu")
     _pick(win.resolution_box, "1080p")
