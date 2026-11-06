@@ -4,7 +4,7 @@ After a batch finishes, step 4 lets you check each conversion against its origin
 
 ![The Compare and clean up page, listing verified conversions with sizes and quality scores](../images/4-compare-and-clean-up.png)
 
-The list shows the videos from the batch you just ran. The columns are: **Delete?**, **Original**, **Folder**, **Before**, **After**, **% Saved**, **VMAF average**, **Worst 1%** and **Result**, plus **Encoding** if you turned it on in [Settings](settings-and-data.md#encoding-column). Click a column title to sort. A big label above the list tells you how much space can be saved once the originals are removed.
+The list shows the videos from the batch you just ran. The columns are: **Delete?**, **Original**, **Folder**, **Before**, **After**, **% Saved**, **VMAF average**, **Worst 1%** and **Result**, plus **Encoding** if you turned it on in [Settings](settings-and-data.md#encoding-column). Click a column title to sort, and drag the edge of a title to resize the column. Hover over **VMAF average** or **Worst 1%** for a short explanation. A big label above the list tells you how much space can be saved once the originals are removed.
 
 A "Needs your attention" box lists every file that was kept as the original, failed, or got a warning sign, with the reason. If all went well it says "Every conversion passed." [Warnings and messages](warnings.md) explains each result.
 

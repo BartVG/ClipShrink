@@ -2,6 +2,12 @@
 
 ClipShrink walks you through four numbered steps. This is a short tour; each section links to the page that explains it fully.
 
+## Welcome
+
+When the app opens, a Welcome screen says what it does. Click **Choose folder…** to go straight to step 1, or tick **Don't show this again** to skip it next time. You can turn it back on in [Settings](../user-guide/settings-and-data.md).
+
+![The Welcome screen with three points and a Choose folder button](../images/0-welcome.png)
+
 ## 1. Find videos
 
 Click **Choose folder…**. ClipShrink looks through the folder and every folder inside it and lists the H.264 videos it can shrink. Nothing is changed yet.

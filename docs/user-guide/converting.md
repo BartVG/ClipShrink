@@ -14,6 +14,8 @@ Two progress bars show all files and the current file with its stage: "Finding t
 
 Videos are converted one at a time, never in parallel. A file that fails or is kept as original does not stop the rest of the batch.
 
+Drag the edge of a column title to resize it, and hover over **VMAF average** or **Worst 1%** for a short explanation. Columns fit their content until you drag one, and your widths then stay until you click **Start Over**.
+
 ## If your PC crashes
 
 Reopen ClipShrink. It asks "Continue where you left off?" with the number of unfinished videos. Choose Yes to carry on; finished files are not redone. The file that was in progress starts again from the beginning. If you decline, ClipShrink forgets that batch. Its finished conversions stay on disk, and the next scan marks their originals "Already has a conversion".

@@ -37,6 +37,10 @@ Individual clips saved between 9% and 77%. Your results will depend on your foot
 
 ## How to use it
 
+The app opens on a Welcome screen that says what it does, with a **Choose folder** button to get started.
+
+![Welcome screen](docs/images/0-welcome.png)
+
 ### 1. Find your videos
 Pick a folder. ClipShrink looks through it and every folder inside it, and lists every H.264 video. Videos that are already H.265 are shown as skipped.
 
@@ -57,7 +61,7 @@ Play any original beside its conversion, in sync, with frame stepping and a 100%
 
 ![Side by side playback of a snowy mountain view, identical on both sides](docs/images/side-by-side.jpg)
 
-Click any column title to sort. **Select All** and **Select Recommended** tick files for you, and Recommended leaves out anything with a warning sign. When you're happy, you can send originals to the Recycle Bin, then remove the added tags from the new names. Both steps are optional, ask you to confirm and show a progress bar.
+Click any column title to sort, and drag its edge to resize. Hover over the VMAF columns for a short explanation. **Select All** and **Select Recommended** tick files for you, and Recommended leaves out anything with a warning sign. When you're happy, you can send originals to the Recycle Bin, then remove the added tags from the new names. Both steps are optional, ask you to confirm and show a progress bar.
 
 ### Settings
 The defaults suit most people. If you want, you can choose the graphics card or the processor, H.265 or AV1, and a largest size. Shrinking loses detail for good, so those conversions are labelled Resized, and they're checked against a shrunken copy of the original. You can also show an Encoding column with the format, quality setting, resolution and bitrate.

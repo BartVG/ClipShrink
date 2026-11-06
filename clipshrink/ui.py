@@ -229,11 +229,19 @@ def table(headers, stretch=0, ticks=False, wide=None, pills=None, right=()):
         t.horizontalHeaderItem(c).setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
     if pills is not None:
         t.setItemDelegateForColumn(pills, PillDelegate(t))
-    h.setSectionResizeMode(QHeaderView.ResizeToContents)
-    h.setSectionResizeMode(stretch, QHeaderView.Stretch)
-    if wide is not None:    # a long folder path needs room, and can be dragged wider
-        h.setSectionResizeMode(wide, QHeaderView.Interactive)
-        t.setColumnWidth(wide, 200)
+    h.setSectionResizeMode(QHeaderView.Interactive)
+    h.setStretchLastSection(True)
+    t.setProperty("fitting", False)
+    t.setProperty("user_sized", False)
+
+    def resized(col, old, new):
+        # Only a drag counts. fit_columns sets widths itself, the last column stretches with
+        # the window, and hiding or showing a column goes through a width of 0.
+        last = max((c for c in range(t.columnCount()) if not t.isColumnHidden(c)), default=-1)
+        if not t.property("fitting") and col != last and old and new:
+            t.setProperty("user_sized", True)
+
+    h.sectionResized.connect(resized)
     h.setSortIndicator(-1, Qt.AscendingOrder)   # keep the list's own order until a header is clicked
     h.setSortIndicatorShown(True)
     h.setSectionsClickable(True)
@@ -241,6 +249,23 @@ def table(headers, stretch=0, ticks=False, wide=None, pills=None, right=()):
     if ticks:
         t.setItemDelegateForColumn(0, TickDelegate(t))
     return t
+
+
+MAX_FOLDER_WIDTH = 340
+
+
+def fit_columns(t, force=False):
+    """Fits columns to their content, until the user has dragged one."""
+    if t.property("user_sized") and not force:
+        return
+    t.setProperty("fitting", True)
+    t.resizeColumnsToContents()
+    for c in range(t.columnCount()):
+        if t.horizontalHeaderItem(c).text() == "Folder" and t.columnWidth(c) > MAX_FOLDER_WIDTH:
+            t.setColumnWidth(c, MAX_FOLDER_WIDTH)      # a long path shouldn't push everything off screen
+    t.setProperty("fitting", False)
+    if force:
+        t.setProperty("user_sized", False)
 
 
 def cell(text="", tip=None, key=None):
@@ -476,6 +501,7 @@ class MainWindow(QMainWindow):
         self.settings = app_settings.load(self.db_path)
         self._syncing = False
         self.conv_count = None
+        self._closing = False
         self._forget_if_finished()
         self.folder = None
         self.stage = 0
@@ -541,10 +567,15 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self._page_review())
         self.about_page = self._page_about()
         self.stack.addWidget(self.about_page)
+        self.welcome_page = self._page_welcome()
         self.settings_page = self._page_settings()
         self.stack.addWidget(self.settings_page)
+        self.stack.addWidget(self.welcome_page)
         self._apply_settings_view()
         self.go(0)
+        # A waiting batch goes straight to its "Continue where you left off?" question.
+        if not self.settings.skip_welcome and not self._unfinished():
+            self.go(6)
         QTimer.singleShot(200, self._offer_resume)
 
     # --- plain facts other code and the check rely on ---------------------
@@ -761,6 +792,7 @@ class MainWindow(QMainWindow):
                 self.scan_table.setItem(i, c, it)
         self.scan_table.setSortingEnabled(True)
         self.scan_table.blockSignals(False)
+        fit_columns(self.scan_table)
         parts = [f"{len(res.h264)} H.264 video{'s' if len(res.h264) != 1 else ''}, "
                  f"{human_size(sum(f.size for f in res.h264))}."]
         n265 = sum(1 for f in res.other if f.codec == "hevc")
@@ -915,6 +947,7 @@ class MainWindow(QMainWindow):
             for c, it in enumerate(vals):
                 self.est_table.setItem(i, c, it)
         self.est_table.setSortingEnabled(True)
+        fit_columns(self.est_table)
         self.to_convert.setEnabled(True)
         self.conv_info.setText(f"{len(self.selected_files())} video{'s' if len(self.selected_files()) != 1 else ''}, {human_size(est.total_source_bytes)}. "
                                f"Expected time: {human_time(est.seconds_estimate)}. Your computer will not go to sleep "
@@ -1035,6 +1068,7 @@ class MainWindow(QMainWindow):
             for c, it in enumerate(vals):
                 self.conv_table.setItem(i, c, it)
         self.conv_table.setSortingEnabled(True)
+        fit_columns(self.conv_table)
         self._refresh_conv_summary()
 
     def conv_totals(self):
@@ -1077,6 +1111,7 @@ class MainWindow(QMainWindow):
             self.conv_table.setSortingEnabled(False)
             self.conv_table.setItem(i, 2, cell(text))
             self.conv_table.setSortingEnabled(True)
+            fit_columns(self.conv_table)
         self._refresh_conv_summary()
 
     def _start_converting(self):
@@ -1136,6 +1171,7 @@ class MainWindow(QMainWindow):
             self.conv_table.setItem(i, 7, score_cell(rec.vmaf_p1, rec.warn_p1))
         self.conv_table.setItem(i, 8, details_cell(rec))
         self.conv_table.setSortingEnabled(True)
+        fit_columns(self.conv_table)
         self.conv_recs[rec.source] = rec
         if rec.status not in ("pending", "encoding"):
             self.conv_state[rec.source] = "Completed"
@@ -1226,6 +1262,8 @@ class MainWindow(QMainWindow):
         self.to_estimate.setEnabled(False)
         self._reset_estimate_view()
         self._fill_conv_table([])
+        for t in (self.scan_table, self.est_table, self.conv_table, self.review):
+            fit_columns(t, force=True)
         self.conv_cards["Time Remaining"].setText("–")
         self.overall_bar.setValue(0)
         self.file_bar.setValue(0)
@@ -1236,7 +1274,7 @@ class MainWindow(QMainWindow):
         self.go(0)
 
     def _offer_resume(self):
-        if self.busy:       # a batch already started: nothing to offer
+        if self.busy or self._closing:      # a batch already started, or the window has gone
             return
         left = self._unfinished()
         if not left:
@@ -1338,6 +1376,7 @@ class MainWindow(QMainWindow):
             for c, it in enumerate(vals):
                 self.review.setItem(i, c, it)
         self.review.setSortingEnabled(True)
+        fit_columns(self.review)
         self.savings_lab.setText(f"{human_size(saved)} can be saved once originals are removed" if saved else "")
         bad = [r for r in shown if r.status in ("kept_original", "failed", "below_bar")]
         self.problem_title.setText(f"Needs your attention ({len(bad)})" if bad else "Needs your attention: nothing")
@@ -1551,6 +1590,8 @@ class MainWindow(QMainWindow):
         self.resolution_note = add_note(5)
         self.details_box = QCheckBox("Show an Encoding column with format, quality setting, resolution and bitrate")
         grid.addWidget(self.details_box, 6, 1)
+        self.show_welcome_box = QCheckBox("Show the Welcome screen when the app opens")
+        grid.addWidget(self.show_welcome_box, 7, 1)
         inner.addWidget(card)
         inner.addWidget(self._advanced_card())
         inner.addStretch(1)
@@ -1567,8 +1608,9 @@ class MainWindow(QMainWindow):
         self._show_settings_values()
         for box in (self.hardware_box, self.codec_box, self.resolution_box):
             box.currentIndexChanged.connect(self._settings_changed)
-        for box in (self.details_box, self.advanced_box, self.aim_box, self.minimum_box):
+        for box in (self.details_box, self.show_welcome_box, self.advanced_box, self.aim_box, self.minimum_box):
             box.toggled.connect(self._settings_changed)
+        self.welcome_skip.toggled.connect(self._welcome_skip_changed)
         for box in (self.warn_mean_box, self.warn_p1_box, self.min_mean_box, self.min_p1_box):
             box.valueChanged.connect(self._settings_changed)
         return p
@@ -1655,6 +1697,8 @@ class MainWindow(QMainWindow):
             box.blockSignals(False)
         self._syncing = True
         self.details_box.setChecked(s.show_details)
+        self.show_welcome_box.setChecked(not s.skip_welcome)
+        self.welcome_skip.setChecked(s.skip_welcome)
         self.advanced_box.setChecked(s.advanced)
         self.warn_mean_box.setValue(s.warn_mean)
         self.warn_p1_box.setValue(s.warn_p1)
@@ -1681,7 +1725,8 @@ class MainWindow(QMainWindow):
         self.settings = app_settings.Settings(hardware, self.codec_box.currentData(), self.resolution_box.currentData(),
                                               self.details_box.isChecked(), self.advanced_box.isChecked(),
                                               self.warn_mean_box.value(), self.warn_p1_box.value(), self.aim_box.isChecked(),
-                                              self.minimum_box.isChecked(), self.min_mean_box.value(), self.min_p1_box.value())
+                                              self.minimum_box.isChecked(), self.min_mean_box.value(), self.min_p1_box.value(),
+                                              not self.show_welcome_box.isChecked())
         app_settings.save(self.db_path, self.settings)
         if old != key(self.settings):
             self.estimate = None        # the measured saving no longer applies
@@ -1733,6 +1778,17 @@ class MainWindow(QMainWindow):
         for w in (self.min_mean_box, self.min_p1_box):
             w.setEnabled(unlocked and s.use_minimum)
         policy = s.policy()
+        average = config.TIP_AVERAGE
+        if policy.warn_mean != config.VMAF_MEAN_MIN:
+            average += f" Your target is {policy.warn_mean:g}."
+        worst = config.TIP_WORST.format(p1=policy.warn_p1)
+        for t, p1_title in ((self.est_table, "VMAF worst 1%"), (self.conv_table, "Worst 1%"), (self.review, "Worst 1%")):
+            for c in range(t.columnCount()):
+                head = t.horizontalHeaderItem(c)
+                if head.text() == "VMAF average":
+                    head.setToolTip(average)
+                elif head.text() == p1_title:
+                    head.setToolTip(worst)
         self.est_target_note.setText(f"The target: VMAF average at least {policy.warn_mean:g}, worst 1% of frames at least "
                                      f"{policy.warn_p1:g}. Every full file is measured again after conversion.")
         self.codec_note.setText("AV1 files are usually smaller, but they play on fewer devices. "
@@ -1756,6 +1812,74 @@ class MainWindow(QMainWindow):
         for w in (self.hardware_box, self.codec_box, self.resolution_box, self.settings_reset, self.advanced_box):
             w.setEnabled(not self.busy)
         self._apply_settings_view()
+
+    # --- Welcome ----------------------------------------------------------
+    def welcome_text(self):
+        return " ".join(lab.text() for lab in self.welcome_page.findChildren(QLabel))
+
+    def _page_welcome(self):
+        p = QWidget()
+        p.setObjectName("page")
+        v = QVBoxLayout(p)
+        v.setContentsMargins(60, 30, 60, 30)
+        v.addStretch(1)
+        title = QLabel(f"Welcome to {config.APP_NAME}")
+        title.setStyleSheet("font-size:30pt; font-weight:700;")
+        title.setAlignment(Qt.AlignCenter)
+        v.addWidget(title)
+        head = QLabel("Shrink your videos, keep the quality.")
+        head.setObjectName("big")
+        head.setAlignment(Qt.AlignCenter)
+        v.addWidget(head)
+        v.addSpacing(18)
+        for mark, name, text in (
+                ("🎯", "Zero guesswork", "No bitrates or codecs to configure. ClipShrink automatically finds the right "
+                                         "compression balance for every video."),
+                ("👁️", "Measured frame-by-frame", "Every result is scored against the original using Netflix's VMAF visual "
+                                                  "quality metric, and any clip that misses the target is clearly flagged."),
+                ("🛡️", "You stay in control", "Conversions are saved as new files alongside your originals. Compare both "
+                                              "versions side by side before deciding what to send to the Recycle Bin.")):
+            card = QFrame()
+            card.setObjectName("card")
+            row = QHBoxLayout(card)
+            row.setContentsMargins(18, 14, 18, 14)
+            row.setSpacing(16)
+            icon = QLabel(mark)
+            icon.setStyleSheet("font-family:'Segoe UI Emoji'; font-size:24pt; background:transparent; border:none;")
+            row.addWidget(icon)
+            lab = QLabel(f"<b>{name}:</b> {text}")
+            lab.setWordWrap(True)
+            lab.setStyleSheet("font-size:12pt; background:transparent; border:none;")
+            row.addWidget(lab, 1)
+            v.addWidget(card)
+        v.addSpacing(22)
+        self.welcome_choose = QPushButton("Choose folder…")
+        self.welcome_choose.setObjectName("primary")
+        self.welcome_choose.setStyleSheet("font-size:13pt; padding:12px 40px;")
+        self.welcome_choose.clicked.connect(self._welcome_choose)
+        row = QHBoxLayout()
+        row.addStretch(1)
+        row.addWidget(self.welcome_choose)
+        row.addStretch(1)
+        v.addLayout(row)
+        v.addSpacing(10)
+        self.welcome_skip = QCheckBox("Don't show this again")
+        row = QHBoxLayout()
+        row.addStretch(1)
+        row.addWidget(self.welcome_skip)
+        row.addStretch(1)
+        v.addLayout(row)
+        v.addStretch(1)
+        return p
+
+    def _welcome_choose(self):
+        d = QFileDialog.getExistingDirectory(self, "Choose the folder with your videos")
+        if d:
+            self.go(0)
+            self.start_scan(d)
+
+    def _welcome_skip_changed(self, skip):
+        self.show_welcome_box.setChecked(not skip)      # saved through _settings_changed
 
     # --- About ------------------------------------------------------------
     def about_text(self):
@@ -1801,12 +1925,14 @@ class MainWindow(QMainWindow):
         return p
 
     def closeEvent(self, ev):
+        self._closing = True
         if self.busy and self.converter:
             ans = QMessageBox.question(self, "Stop converting?",
                                        "The batch is still running. If you close now, the current file is restarted "
                                        "next time and finished files are kept. Close anyway?")
             if ans != QMessageBox.Yes:
                 ev.ignore()
+                self._closing = False
                 return
             self.converter.stop()
         elif not self.busy:
@@ -1817,8 +1943,10 @@ class MainWindow(QMainWindow):
 def main():
     app = QApplication(sys.argv)
     app.setApplicationName(config.APP_NAME)
-    # Windows groups a Python-built app under its own taskbar entry only with an ID of its own.
-    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("ClipShrink.App")
+    # Only when run from source, as python.exe. The installed app has its own icon, and an ID
+    # with no matching shortcut is the leading suspect for a generic taskbar icon.
+    if not getattr(sys, "frozen", False):
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("ClipShrink.App")
     app.setWindowIcon(QIcon(tools.icon_path()))
     apply_theme(app)
     w = MainWindow()

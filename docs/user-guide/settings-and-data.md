@@ -52,6 +52,10 @@ Changing any setting except this one clears the current estimate, so run the tes
 
 A file that is already converted isn't converted again when you change a setting.
 
+## Welcome screen
+
+**Show the Welcome screen when the app opens** is on by default. Turn it off here or with **Don't show this again** on the screen itself. **Back to the defaults** turns it on again. The screen is skipped when an unfinished batch is waiting.
+
 ## Where ClipShrink keeps its data
 
 Everything stays on your PC; nothing is sent anywhere.

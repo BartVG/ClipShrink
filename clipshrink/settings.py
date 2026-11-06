@@ -24,6 +24,7 @@ class Settings:
     use_minimum: bool = False
     min_mean: float = 80.0
     min_p1: float = 70.0
+    skip_welcome: bool = False
 
     def policy(self):
         """The defaults apply until the user has unlocked the advanced values."""
@@ -49,7 +50,7 @@ def load(db_path):
     for key, allowed in CHOICES.items():
         if data.get(key) in allowed:
             setattr(out, key, data[key])
-    for key in ("show_details", "advanced", "aim", "use_minimum"):
+    for key in ("show_details", "advanced", "aim", "use_minimum", "skip_welcome"):
         if isinstance(data.get(key), bool):
             setattr(out, key, data[key])
     numbers = {k: data.get(k, getattr(out, k)) for k in ("warn_mean", "warn_p1", "min_mean", "min_p1")}

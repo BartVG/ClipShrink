@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 
 APP_NAME = "ClipShrink"
-VERSION = "1.6"
+VERSION = "1.6.1"
 PROJECT_URL = "https://github.com/tophe323/ClipShrink"
 DOCS_URL = "https://tophe323.github.io/ClipShrink/"
 ADVANCED_DOCS_URL = DOCS_URL + "user-guide/advanced-settings/"
@@ -109,6 +109,11 @@ def target_size(width, height, choice):
 VIDEO_EXTS = {".mp4", ".mov", ".m4v", ".mkv", ".avi", ".lrv", ".mts", ".m2ts", ".ts", ".3gp"}
 GRAFT_EXTS = {".mp4", ".mov", ".m4v", ".lrv"}
 SKIP_DIRS = {"$recycle.bin", "system volume information", ".tmp.drivedownload", ".tmp.driveupload"}
+
+TIP_AVERAGE = ("How close this video looks to the original, from 0 to 100. VMAF is a score made by Netflix, based on how "
+               "people see video. At 95 or above, most people can't see a difference.")
+TIP_WORST = ("The score of the worst moments: 1% of the video's frames score lower than this. It catches a short bad "
+             "patch that a good average would hide. The target is {p1:g} or above.")
 
 QUALITY_EXPLANATION = (
     "Truly lossless H.265, where every pixel stays identical, usually makes files larger than the originals, "

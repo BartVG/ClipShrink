@@ -9,6 +9,9 @@
 ??? question "Where did my earlier conversions go on Compare and clean up?"
     That page only lists the batch you just ran. Once you exit or click **Start Over**, ClipShrink forgets those files. The conversions stay on disk, each batch's report stays in the reports folder, and you can remove earlier originals yourself.
 
+??? question "What's VMAF?"
+    A score from 0 to 100 made by Netflix, for how close a video looks to the original, based on how people see video. At 95 or above, most people can't see a difference. **Worst 1%** is the score of the worst moments: 1% of the video's frames score lower than this, so it catches a short bad patch that a good average would hide. Hover over either column title in the app for a reminder.
+
 ??? question "Why does a file say Already has a conversion?"
     An H.265 or AV1 file with the same name and a tag such as `_(h265)` is in the same folder. It isn't ticked, so it isn't converted twice. Tick it if you do want to convert it again.
 

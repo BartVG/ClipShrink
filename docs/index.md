@@ -21,7 +21,7 @@ VMAF is the score used to compare a conversion with its original, from 0 to 100 
 
 ## Download
 
-Get `ClipShrink-Setup.exe` from the [GitHub Releases page](https://github.com/tophe323/ClipShrink/releases). The current version is 1.6, as listed in the changelog. See [Install](getting-started/install.md) for the steps.
+Get `ClipShrink-Setup.exe` from the [GitHub Releases page](https://github.com/tophe323/ClipShrink/releases). The current version is 1.6.1, as listed in the changelog. See [Install](getting-started/install.md) for the steps.
 
 ## Where to go next
 

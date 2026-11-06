@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.6.1 - 2026-11-07
+
+### Added
+- **Welcome screen** when the app opens, with a Choose folder button that goes straight to step 1. You can turn it off.
+- **Tooltips on VMAF average and Worst 1%**, on the See the saving, Convert and Compare pages, explaining what they mean.
+
+### Changed
+- **Resizable columns on every table.** Columns fit their content until you drag one.
+
+### Fixed
+- **Generic icon on the taskbar.** The installed app no longer sets the taskbar ID that was the likely cause. This has yet to be confirmed on a PC showing the problem.
+
 ## 1.6 - 2026-11-06
 
 ### Added

@@ -9,7 +9,7 @@ ClipShrink is a free, open-source Windows app that shrinks H.264 videos to H.265
 | License | GPL version 3, see [License and third-party notices](license.md) |
 | What changed in each version | [Changelog](changelog.md) |
 | Reporting a security problem | [Security](security.md) |
-| Test results while building 1.1 to 1.6 | [History of check runs](../test-history.md) |
+| Test results while building 1.1 to 1.6.1 | [History of check runs](../test-history.md) |
 
 ## Report a bug
 
