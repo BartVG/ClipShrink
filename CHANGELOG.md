@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.3 - 2026-11-06
+
+### Changed
+- **Below the bar no longer blocks a conversion.** A file that can't reach VMAF average 95 and worst 1% 90 at the best setting is still converted, and gets a warning sign. Its original stays until you choose otherwise, and removing it needs an extra confirmation. A result that isn't smaller still keeps the original.
+- The automatic report replaces the Save report button.
+
+### Added
+- A report is kept automatically for every batch, in a reports folder.
+- **Reports & Statistics** page: space saved since you started using the app, average file reduction and more, with reports you can export as CSV, XLSX or PDF, or delete.
+- **About** page.
+- **Select All** and **Select Recommended** buttons on the Compare and clean up page.
+- Click any column title to sort, by its real value.
+- A Folder column showing where each file is.
+- Progress bars while deleting and renaming.
+
+### Removed
+- The Google Drive trash warnings.
+
 ## 1.2 - 2026-11-05
 
 ### Changed

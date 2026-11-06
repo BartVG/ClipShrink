@@ -48,6 +48,9 @@ def test_crash_then_resume_skips_finished_files(get_clip, workspace):
         p.wait()
     assert len(done) == 1
     finished = Path(done[0].source).name
+    from clipshrink.reports import list_reports, reports_dir
+    kept = list_reports(reports_dir(db))
+    assert len(kept) == 1 and kept[0].files == 1, "a crash must not lose the report of finished files"
     out = Path(done[0].output)
     stamp = (out.stat().st_mtime_ns, out.stat().st_ctime_ns, sha256(out))
 

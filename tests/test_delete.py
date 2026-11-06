@@ -77,8 +77,9 @@ def test_refuses_pending_failed_and_kept(get_clip, workspace):
     c.add_files([bad])
     c.run()
     assert c.record(bad).status == "failed"
-    kept = copy_preserving(get_clip("no_audio_no_telemetry"), workspace / "videos" / "kept.mp4")
-    c = Converter(db_path=db, work_dir=work, encoder="x265", ladder=[51], only=[kept])
+    from helpers.clips import make_clip
+    kept = make_clip(workspace / "videos" / "kept.mp4", w=640, h=360, seconds=3, crf=45, telemetry=False)
+    c = Converter(db_path=db, work_dir=work, encoder="x265", ladder=[4], only=[kept])
     c.add_files([kept])
     c.run()
     assert c.record(kept).status == "kept_original"
@@ -116,9 +117,27 @@ def test_refuses_if_original_changed_since_verification(verified):
     assert res.deleted == [] and src.exists() and res.refused
 
 
-def test_warning_mentions_google_drive_trash():
-    from clipshrink.trash import GOOGLE_DRIVE_WARNING as w
-    assert "Google Drive" in w and "trash" in w.lower() and "storage" in w.lower()
+def test_below_bar_original_needs_its_own_confirmation(get_clip, workspace):
+    from clipshrink.engine import Converter
+    from clipshrink.trash import deletable, delete_originals
+    name = f"clipshrink_test_{uuid.uuid4().hex}.mp4"
+    src = copy_preserving(get_clip("no_audio_no_telemetry"), workspace / "videos" / name)
+    db = workspace / "work" / "s.db"
+    c = Converter(db_path=db, work_dir=workspace / "work" / "t", encoder="x265", ladder=[51])
+    c.add_files([src])
+    c.run()
+    assert c.record(src).status == "below_bar"
+    assert [Path(r.source) for r in deletable(db)] == [src], "below-the-bar originals are offered"
+    res = delete_originals(db, [src], confirmed=True)
+    assert res.deleted == [] and src.exists() and res.refused, "plain confirmation is not enough"
+    res = delete_originals(db, [src], confirmed=True, below_bar_confirmed=True)
+    assert [Path(p) for p in res.deleted] == [src]
+    purge_own_test_files(recycle_bin_has(src.name))
+
+
+def test_google_drive_warning_is_gone():
+    from clipshrink import trash
+    assert not hasattr(trash, "GOOGLE_DRIVE_WARNING")
 
 
 # --- Removing _H265 from the name, only after the original has gone

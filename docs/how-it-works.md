@@ -11,6 +11,7 @@ ClipShrink is a Python desktop app that runs three bundled programs: **FFmpeg** 
 | [`engine.py`](../clipshrink/engine.py) | Runs the batch and verifies each file |
 | [`db.py`](../clipshrink/db.py) | Remembers progress for crash recovery |
 | [`trash.py`](../clipshrink/trash.py) | Recycle Bin and rename rules |
+| [`reports.py`](../clipshrink/reports.py) | Batch reports, statistics and exports |
 | [`player.py`](../clipshrink/player.py) | Side by side playback |
 | [`ui.py`](../clipshrink/ui.py) | The window |
 
@@ -29,10 +30,13 @@ One file at a time:
 2. **Encode.** FFmpeg encodes the video track only, keeping every frame timestamp.
 3. **Build the file.** See below.
 4. **Verify.** This checks the codec, resolution, frame count, duration and colour, confirms the other tracks are byte-identical, then runs VMAF on every frame.
-5. **Deliver or retry.** A pass is copied next to the original with the original's dates. If VMAF fails, it re-encodes at a stricter setting until the settings run out, then keeps the original.
+5. **Deliver or retry.** A pass is copied next to the original with the original's dates. If VMAF falls short, it re-encodes at a stricter setting. When the settings run out, it delivers the best attempt with a warning sign. A result that isn't smaller, or that doesn't match the original's frames and tracks, is never delivered, and the original is kept and reported.
+6. **Report.** The batch's report is rewritten after each file, so a crash keeps the record of everything finished.
 
 ### 4. Compare and clean up
 One mpv process decodes both files and joins them into a single picture. Left and right share one clock, so they can't drift apart.
+
+A warning sign appears when a conversion misses the bar, and **Select Recommended** leaves those files out. Deleting their originals needs an extra confirmation.
 
 Before deleting, it recalculates the conversion's SHA-256 fingerprint and checks the original hasn't changed since verification. Only then does it call Windows' Recycle Bin function, with the flag that makes Windows warn if a file would be permanently deleted instead.
 
@@ -48,7 +52,7 @@ This code is the newest and riskiest part of the tool, which is why verification
 
 ## How quality is judged
 
-- **The bar:** VMAF mean of at least 95, and at least 90 on the 1st percentile. Every frame is scored, with no sampling.
+- **The bar:** a recommended conversion has a VMAF mean of at least 95, and at least 90 on the 1st percentile. Every frame is scored, with no sampling.
 - **4K:** it must pass both the standard and the 4K VMAF models, and the lower score counts.
 - **Encoders:** NVIDIA's NVENC is chosen automatically when available. x265 on the processor is the fallback. Each has its own list of 9 quality settings.
 
@@ -68,6 +72,10 @@ NVENC has one trap: without a high `-maxrate`, it silently limits itself to arou
 - **Crash recovery:** every status change is saved to a small database, `%LOCALAPPDATA%\ClipShrink\state.db`, before work moves on. After a crash, finished files are skipped and the interrupted file restarts from the beginning.
 - **Pause** freezes the FFmpeg process in place, so no progress is lost unless the app closes.
 - **Closing or crashing:** Windows stops FFmpeg along with the app, so no encoder keeps running in the background.
+
+## Reports and statistics
+
+Each batch writes one CSV file to `%LOCALAPPDATA%\\ClipShrink\\reports`. Exports to XLSX and PDF are made from that file on demand. Statistics come from the app's own records rather than the reports, so deleting a report doesn't change your totals. Spreadsheet-style characters at the start of a file name are escaped, so a file name can't act as a formula.
 
 ## How the tests stay honest
 

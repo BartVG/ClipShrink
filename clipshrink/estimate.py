@@ -79,7 +79,7 @@ def estimate_savings(files, encoder="auto", work_dir=None, ladder=None, on_progr
                 speed.append((seg_seconds, row.encode_seconds, row.vmaf_seconds))
                 samples.append(Sample(f.path, row.at, ladder[found.index], src_bytes, row.encoded_bytes,
                                       row.score.mean, row.score.p1, found.passed))
-            ratio = enc_total / src_total if found.passed else 1.0
+            ratio = enc_total / src_total     # below the bar is still converted, and still saves space
             by_group.setdefault(f.group, []).append(min(ratio, 1.0))
             shutil.rmtree(job, ignore_errors=True)
         if on_progress:

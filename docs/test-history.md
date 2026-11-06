@@ -1,6 +1,6 @@
 # History of check runs
 
-Every completed full run while building versions 1.1 and 1.2. Your own runs are logged to `docs/check_history.md`, which stays on your PC.
+Every completed full run while building versions 1.1 to 1.3. Your own runs are logged to `docs/check_history.md`, which stays on your PC.
 
 | When | Took | Tests | Passed | Failed | Skipped | Result | Note |
 |---|---|---|---|---|---|---|---|
@@ -12,3 +12,5 @@ Every completed full run while building versions 1.1 and 1.2. Your own runs are 
 | 2026-11-05 22:21 | 8.8 min | 55 | 55 | 0 | 0 | PASS | version 1.1: H.265 files listed as skipped |
 | 2026-11-05 23:13 | 13.0 min | 57 | 57 | 0 | 0 | PASS | version 1.2: wording for any H.264 video |
 | 2026-11-05 23:27 | 13.7 min | 58 | 58 | 0 | 0 | PASS | version 1.2: player failure reported cleanly |
+| 2026-11-06 08:26 | 9.1 min | 91 | 91 | 0 | 0 | PASS | version 1.3: reports, statistics, below-bar conversions, sorting, folders, selection |
+| 2026-11-06 08:38 | 9.1 min | 91 | 91 | 0 | 0 | PASS | version 1.3: final build |

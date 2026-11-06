@@ -46,6 +46,12 @@ def workspace(tmp_path):
     return tmp_path
 
 
+@pytest.fixture(scope="session")
+def qapp_instance():
+    from PySide6.QtWidgets import QApplication
+    return QApplication.instance() or QApplication([])
+
+
 def copy_preserving(src, dst):
     from helpers.media import get_times, set_times
     Path(dst).parent.mkdir(parents=True, exist_ok=True)

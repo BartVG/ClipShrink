@@ -2,7 +2,7 @@
 search -> encode -> build -> verify -> deliver, and originals are only read."""
 import hashlib, os, shutil, threading, time
 from pathlib import Path
-from . import config, db, encode, mp4graft, scan, tools
+from . import config, db, encode, mp4graft, reports, scan, tools
 
 WEIGHTS = {"search": 0.15, "encode": 0.55, "verify": 0.30}
 
@@ -83,7 +83,7 @@ class Converter:
             if rec:
                 same = rec.source_size == st.st_size and rec.source_mtime_ns == st.st_mtime_ns
                 keep = same and (rec.status in ("kept_original", "failed", "pending")
-                                 or (rec.status == "verified" and output_intact(rec)))
+                                 or (rec.status in ("verified", "below_bar") and output_intact(rec)))
                 if keep:
                     self._scope[p] = True
                     continue
@@ -123,6 +123,7 @@ class Converter:
         if not os.environ.get("PYTEST_CURRENT_TEST"):
             tools.keep_awake(True)
         self.on_event({"type": "batch_start", "count": len(todo)})
+        finished, report = [], None
         try:
             for i, path in enumerate(todo):
                 rec = self.record(path)
@@ -144,6 +145,12 @@ class Converter:
                     db.save(self.db_path, rec)
                     self.on_event({"type": "stopped"})
                     return self._cleanup_and_summary()
+                finished.append(path)
+                try:
+                    report = reports.write_batch_report(reports.reports_dir(self.db_path),
+                                                        [self.record(p) for p in finished], report)
+                except OSError:
+                    pass    # a report that can't be written must never stop the conversions
                 self.on_event({"type": "file_done", "path": path, "record": self.record(path)})
                 done_bytes += size
         finally:
@@ -158,7 +165,7 @@ class Converter:
                 shutil.rmtree(d, ignore_errors=True)
         recs = [self.record(p) for p in self._scope]
         return {s: sum(1 for r in recs if r.status == s)
-                for s in ("verified", "kept_original", "failed", "pending")}
+                for s in ("verified", "below_bar", "kept_original", "failed", "pending")}
 
     # --- one file ----------------------------------------------------------
     def _convert(self, rec, progress):
@@ -214,7 +221,7 @@ class Converter:
             if Path(seg).parent == work:
                 Path(seg).unlink(missing_ok=True)
 
-        last = None
+        best = None     # the best conversion so far that is below the bar
         for idx in range(found.index, len(self.ladder)):
             q = self.ladder[idx]
             rec.quality, rec.encode_runs = q, rec.encode_runs + 1
@@ -239,17 +246,21 @@ class Converter:
             try:
                 score = self._verify(src, built, info, work, gate, on_ver)
             except Verdict as v:
-                if v.retry_stricter and idx + 1 < len(self.ladder):
-                    last = v
-                    built.unlink(missing_ok=True)
+                if v.retry_stricter:
+                    kept = work / f"best{built.suffix}"
+                    os.replace(built, kept)
                     video.unlink(missing_ok=True)
+                    best = (kept, v.score, v.reason)
                     continue
+                if best:        # a stricter try grew or didn't match: settle for the best one
+                    break
                 raise
             self._deliver(rec, built, info, score, tmp_src_stat, gate)
             progress(1.0, "done")
             return
-        if last:
-            raise last
+        if best:
+            self._deliver(rec, best[0], info, best[1], tmp_src_stat, gate, "below_bar", best[2])
+            progress(1.0, "done")
 
     def _build(self, src, video, built, gate):
         if Path(src).suffix.lower() in config.GRAFT_EXTS:
@@ -293,8 +304,9 @@ class Converter:
         if score.frames != nf_a:
             raise Verdict(f"VMAF compared {score.frames} frames out of {nf_a}, original kept.")
         if not score.passes():
-            raise Verdict(f"VMAF too low: average {score.mean:.1f} (needs {config.VMAF_MEAN_MIN:.0f}), "
-                          f"worst 1% {score.p1:.1f} (needs {config.VMAF_P1_MIN:.0f}). Original kept.",
+            raise Verdict(f"VMAF below the recommended bar: average {score.mean:.1f} (recommended "
+                          f"{config.VMAF_MEAN_MIN:.0f}), worst 1% {score.p1:.1f} (recommended "
+                          f"{config.VMAF_P1_MIN:.0f}). Compare it before removing the original.",
                           score, retry_stricter=True)
         return score
 
@@ -304,7 +316,7 @@ class Converter:
                        "-show_entries", "stream=nb_read_packets", "-of", "csv=p=0", str(path)])
         return int(r.stdout.strip().split(",")[0]) if r.returncode == 0 and r.stdout.strip() else -1
 
-    def _deliver(self, rec, built, info, score, src_stat, gate):
+    def _deliver(self, rec, built, info, score, src_stat, gate, status="verified", reason=""):
         """Moves the verified file beside the original. Originals are not touched."""
         st = os.stat(rec.source)
         if (st.st_size, st.st_mtime_ns) != src_stat:
@@ -326,8 +338,8 @@ class Converter:
         os.replace(part, dest)
         tools.set_file_times(dest, int(st.st_ctime * 1e9), st.st_mtime_ns)
         final = os.stat(dest)
-        rec.status = "verified"
-        rec.reason = ""
+        rec.status = status
+        rec.reason = reason
         rec.output = str(dest)
         rec.output_size = final.st_size
         rec.output_mtime_ns = final.st_mtime_ns

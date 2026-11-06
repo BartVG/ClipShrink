@@ -1,17 +1,11 @@
-"""Stage 4: optional cleanup. Only verified originals, only with explicit
-confirmation, only to the Recycle Bin."""
+"""Stage 4: optional cleanup. Only originals with a checked conversion, only with
+explicit confirmation, only to the Recycle Bin. Originals of conversions below the
+quality bar need a second confirmation."""
 import ctypes, os
 from ctypes import wintypes
 from dataclasses import dataclass, field
 from pathlib import Path
 from . import db, engine, scan
-
-GOOGLE_DRIVE_WARNING = (
-    "If your videos are in Google Drive, it keeps counting deleted files against your storage until they leave its trash. "
-    "To actually get the space back, also empty the trash at drive.google.com, or wait for Google to "
-    "remove them after 30 days."
-)
-
 
 @dataclass
 class DeleteResult:
@@ -56,11 +50,14 @@ def renamable(db_path):
     return [r for r in db.read_records(db_path, "original_deleted") if why_not_renamable(r) is None]
 
 
-def remove_suffix(db_path, paths, confirmed=False):
+def remove_suffix(db_path, paths, confirmed=False, on_progress=None):
     """Gives a conversion its original's name, once the original has gone."""
     res = RenameResult()
-    for p in paths:
+    paths = list(paths)
+    for i, p in enumerate(paths):
         p = str(p)
+        if on_progress:
+            on_progress(i, len(paths), p)
         if confirmed is not True:
             res.refused.append((p, "renaming was not confirmed"))
             continue
@@ -79,6 +76,8 @@ def remove_suffix(db_path, paths, confirmed=False):
         rec.output_mtime_ns = os.stat(new).st_mtime_ns
         db.save(db_path, rec)
         res.renamed.append((old, new))
+    if on_progress:
+        on_progress(len(paths), len(paths), "")
     return res
 
 
@@ -94,7 +93,7 @@ def why_not_deletable(rec, deep=False):
     """Returns the reason the original must stay, or None if it may go."""
     if rec is None:
         return "this file was never converted by this tool"
-    if rec.status != "verified":
+    if rec.status not in ("verified", "below_bar"):
         return f"its conversion is not verified (status: {rec.status})"
     if not engine.fingerprint_matches(rec):
         return "the original has changed since it was verified"
@@ -116,18 +115,25 @@ def why_not_deletable(rec, deep=False):
 
 def deletable(db_path):
     """The only files that may be offered for deletion."""
-    return [r for r in db.read_records(db_path, "verified") if why_not_deletable(r) is None]
+    recs = db.read_records(db_path, "verified") + db.read_records(db_path, "below_bar")
+    return [r for r in recs if why_not_deletable(r) is None]
 
 
-def delete_originals(db_path, paths, confirmed=False):
+def delete_originals(db_path, paths, confirmed=False, below_bar_confirmed=False, on_progress=None):
+    """on_progress(done, total, path) is called before each file and once at the end."""
     res = DeleteResult()
-    for p in paths:
+    paths = list(paths)
+    for i, p in enumerate(paths):
         p = str(p)
+        if on_progress:
+            on_progress(i, len(paths), p)
         if confirmed is not True:
             res.refused.append((p, "deletion was not confirmed"))
             continue
         rec = db.get(db_path, p)
         reason = why_not_deletable(rec, deep=True)
+        if not reason and rec.status == "below_bar" and below_bar_confirmed is not True:
+            reason = "its conversion is below the quality bar, and that was not confirmed"
         if reason:
             res.refused.append((p, reason))
             continue
@@ -137,4 +143,6 @@ def delete_originals(db_path, paths, confirmed=False):
             res.deleted.append(p)
         else:
             res.refused.append((p, "Windows did not move it to the Recycle Bin, so it was left in place"))
+    if on_progress:
+        on_progress(len(paths), len(paths), "")
     return res

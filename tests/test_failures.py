@@ -17,14 +17,34 @@ def run(src, ws, **kw):
     return c.record(src)
 
 
-def test_quality_failure_keeps_original(get_clip, workspace):
+def test_below_the_bar_is_converted_flagged_and_original_untouched(get_clip, workspace):
+    from helpers.media import measure_vmaf, probe, vstream
     src = copy_preserving(get_clip("no_audio_no_telemetry"), workspace / "videos" / "a.mp4")
     before, times = sha256(src), get_times(src)
     rec = run(src, workspace, ladder=[51])
-    assert rec.status == "kept_original"
+    assert rec.status == "below_bar"
     assert "VMAF" in rec.reason and rec.vmaf_mean is not None and rec.vmaf_mean < 95
-    assert only_videos(workspace / "videos") == ["a.mp4"], "a failing conversion must not be left behind"
+    assert only_videos(workspace / "videos") == ["a.mp4", "a_H265.mp4"]
     assert sha256(src) == before and get_times(src) == times
+    # the score shown is the real one, measured independently
+    v = measure_vmaf(rec.output, src, workspace)
+    assert abs(v["mean"] - rec.vmaf_mean) < 0.5 and v["mean"] < 95
+    assert vstream(probe(rec.output))["codec_name"] == "hevc"
+
+
+def test_tries_stricter_settings_before_settling_below_the_bar(get_clip, workspace):
+    src = copy_preserving(get_clip("no_audio_no_telemetry"), workspace / "videos" / "a.mp4")
+    rec = run(src, workspace, ladder=[51, 45])
+    assert rec.status == "below_bar" and rec.quality == 45, "must keep the best quality it tried"
+    assert rec.encode_runs >= 1
+
+
+def test_low_worst_frames_alone_also_count_as_below_the_bar():
+    from clipshrink import config
+    assert config.is_recommended(96.0, 91.0)
+    assert not config.is_recommended(94.9, 95.0)
+    assert not config.is_recommended(96.0, 89.9)
+    assert not config.is_recommended(None, None)
 
 
 def test_larger_conversion_keeps_original(workspace):
