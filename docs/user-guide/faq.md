@@ -25,7 +25,7 @@
     Messages such as "the video player could not open these files" or "the video player stopped" appear in a box. Close the player window and open the pair again. Both the original and the conversion must still be on disk, and the conversion must be verified or have a warning sign.
 
 ??? question "Does it work without an NVIDIA graphics card?"
-    Yes. With the default **Automatic (recommended)** speed, ClipShrink uses an NVIDIA card if a test encode on it succeeds, and otherwise uses your processor, which is slower. You can also choose between the two in the **Speed:** menu on the "See the saving" page. The choice is not remembered between runs.
+    Yes. By default ClipShrink uses an NVIDIA card if a test encode on it succeeds, and otherwise uses your processor, which is slower. You can choose in [Settings](settings-and-data.md#encode-with), and the choice is remembered.
 
 ??? question "A file shows 'Failed, original kept'. Is my video safe?"
     Yes. Your original is untouched. The reason follows "Could not convert, original kept:". Failed files are not retried automatically in a later run while the original is unchanged.

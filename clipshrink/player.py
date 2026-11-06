@@ -19,9 +19,10 @@ class SideBySidePlayer:
         self._req = 0
         self.detail = False
         self.src_width, self.src_height = width, height
+        self.conv_width, self.conv_height = None, None
 
     def _graph(self):
-        w, h = self.src_width, self.src_height
+        w, h = self.conv_width or self.src_width, self.conv_height or self.src_height
         if self.detail and w and h:
             # 1:1 pixels, a window from the centre of each picture
             cw, ch = min(w, 960), min(h, 1080)
@@ -30,13 +31,17 @@ class SideBySidePlayer:
             f = "scale=1920:-2"
         else:
             f = "null"
-        return f"[vid1]{f}[a];[vid2]{f}[b];[a][b]hstack[vo]"
+        # A shrunk conversion: bring the original to the same size so they can sit side by side.
+        match = f"scale={w}:{h}:flags=lanczos," if self.conv_width and self.conv_width != self.src_width else ""
+        return f"[vid1]{match}{f}[a];[vid2]{f}[b];[a][b]hstack[vo]"
 
     def start(self):
         if self.src_width is None:
             from .scan import probe_file
             info = probe_file(self.original)
             self.src_width, self.src_height = info.width, info.height
+            conv = probe_file(self.converted)
+            self.conv_width, self.conv_height = conv.width, conv.height
         cmd = [tools.mpv(), self.original, f"--external-file={self.converted}", "--no-config", "--pause",
                "--keep-open=always", "--hr-seek=yes", "--osc=no", "--input-default-bindings=no", "--input-vo-keyboard=no",
                "--osd-level=0", "--force-window=yes", "--hwdec=auto-copy-safe", "--title=ClipShrink side by side",

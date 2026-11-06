@@ -35,7 +35,7 @@ Only H.264 videos can be converted, and most are ticked for you.
 | `Ready` | Yes | H.264 video not converted before |
 | `GoPro low-res preview, off by default` | No | `.lrv` files are GoPro's low-resolution preview versions of clips. Tick them only if you want them shrunk too. |
 | `Verified` or `⚠ Below the bar` | No | You already converted this file (same size), so it is not queued again by default. Other earlier results (such as `Original kept`) stay ticked. |
-| `Already H.265, skipped` | Cannot be ticked | The video is already H.265. |
+| `Already H.265, skipped` | Cannot be ticked | The video is already H.265. AV1 and other formats say so the same way. |
 | `Already <CODEC>, skipped` | Cannot be ticked | Any other format, for example `Already VP9, skipped`. |
 
 Skipped rows are greyed and show a dash instead of a tick box. If a skipped file is a conversion ClipShrink made earlier, the State ends with "(converted by this tool)". That is why your own `_H265` files show up as already H.265 and are not converted a second time.

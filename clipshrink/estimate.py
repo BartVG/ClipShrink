@@ -47,8 +47,9 @@ def _pick(files, max_files):
     return picks
 
 
-def estimate_savings(files, encoder="auto", work_dir=None, ladder=None, on_progress=None, max_files=5, gate=None):
-    encoder = encode.resolve_encoder(encoder)
+def estimate_savings(files, encoder="auto", work_dir=None, ladder=None, on_progress=None, max_files=5, gate=None,
+                     codec="h265", max_resolution="original"):
+    encoder = encode.resolve_encoder(encoder, codec)
     ladder = list(ladder) if ladder else list(config.LADDERS[encoder])
     work = Path(work_dir)
     shutil.rmtree(work, ignore_errors=True)
@@ -63,7 +64,8 @@ def estimate_savings(files, encoder="auto", work_dir=None, ladder=None, on_progr
             job = work / f"f{n}"
             job.mkdir()
             segs = encode.cut_segments(f.path, f, job, gate=gate)
-            found = encode.search_quality(segs, encoder, ladder, f, job, guess=hints.get(f.group), gate=gate)
+            found = encode.search_quality(segs, encoder, ladder, f, job, guess=hints.get(f.group), gate=gate,
+                                          target=config.target_size(f.width, f.height, max_resolution))
             hints[f.group] = found.index
             rows = found.rows.get(found.index)
             if rows is None:

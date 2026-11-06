@@ -6,7 +6,7 @@ Step 2 tells you roughly how much space you would save, before a single file is 
 
 ## Run the test encodes
 
-1. Optionally change **Speed** (see [Settings and data](settings-and-data.md)).
+1. Optionally change the format, size or encoder in [Settings](settings-and-data.md). The estimate follows them.
 2. Click **Run the test encodes**.
 
 ClipShrink picks up to five of your ticked videos, spread across the different resolutions and frame rates in your selection, larger files first within each kind of footage. It cuts a few short pieces from each, converts them, and compares them with the originals. A progress bar shows how many of the files are done. The Convert step stays locked until an estimate exists, and changing **Speed** clears the estimate so you measure again.
@@ -30,7 +30,7 @@ Each row is one sample taken from one file:
 | --- | --- |
 | Sample from, Folder | The file the sample was cut from |
 | At | Where in the video, as `m:ss` |
-| Original, H.265 | Size of the sample before and after |
+| Original, H.265 | Size of the sample before and after. The H.265 column shows the converted size in whichever format you chose. |
 | VMAF average, VMAF worst 1% | VMAF is a quality score from 0 to 100 that rates how close the conversion looks to the original. The average covers all frames; the worst 1% shows the weakest moments. |
 | Clears the bar? | `Yes`, or `⚠ No, would get a warning` |
 

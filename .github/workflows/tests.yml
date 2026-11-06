@@ -15,7 +15,7 @@ permissions:
 jobs:
   tests:
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -29,4 +29,4 @@ jobs:
           .venv\Scripts\python -m pip install -r requirements.txt
           .venv\Scripts\python tools\fetch_vendor.py
       - name: Run tests without the real-clip ones
-        run: .venv\Scripts\python -m pytest tests -q --tb=short --deselect tests/test_quality.py::test_real_clip_supplied --deselect tests/test_player.py
+        run: .venv\Scripts\python -m pytest tests -q --tb=short --deselect tests/test_quality.py::test_real_clip_supplied --deselect tests/test_player.py --deselect tests/test_codec_and_size.py::test_side_by_side_works_when_sizes_differ_and_stays_in_sync

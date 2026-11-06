@@ -11,6 +11,7 @@ ClipShrink groups the selected files by resolution and rounded frame rate, sorts
 Each picked file goes through the same search the real conversion uses (see [Quality](quality.md)):
 
 - 3 pieces of 4 seconds, copied from 25%, 50% and 75% of the file, or the whole file if it is 18 seconds or shorter;
+- the format, encoder and largest size chosen in Settings;
 - a binary search over the encoder's 9 quality settings, starting from the previous file's result for the same group.
 
 The samples at the chosen setting are what the estimate uses. If no setting clears the bar, the strictest one is used, because a below-bar file is still converted and still saves space.

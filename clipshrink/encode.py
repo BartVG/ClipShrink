@@ -89,15 +89,26 @@ def run_ffmpeg(args, gate=None, on_time=None, cwd=None):
     return p.returncode, "".join(err)[-1500:]
 
 
-def nvenc_available():
-    r = tools.run([tools.ffmpeg(), "-hide_banner", "-v", "error", "-f", "lavfi", "-i", "color=s=320x240:d=0.1",
-                   "-c:v", "hevc_nvenc", "-f", "null", "-"])
-    return r.returncode == 0
+_TESTED = {}
 
 
-def resolve_encoder(name):
-    if name == "auto":
-        return "nvenc" if nvenc_available() else "x265"
+def encoder_available(name):
+    """A short real encode, because a card can be present but unable to do it."""
+    if name not in _TESTED:
+        ff = {"nvenc": "hevc_nvenc", "av1_nvenc": "av1_nvenc", "x265": "libx265", "svtav1": "libsvtav1"}[name]
+        r = tools.run([tools.ffmpeg(), "-hide_banner", "-v", "error", "-f", "lavfi", "-i", "color=s=1280x720:d=0.1",
+                       "-c:v", ff, "-f", "null", "-"])
+        _TESTED[name] = r.returncode == 0
+    return _TESTED[name]
+
+
+def resolve_encoder(name, codec="h265"):
+    """gpu and auto use the NVIDIA card if it works, otherwise the processor."""
+    card, processor = ("av1_nvenc", "svtav1") if codec == "av1" else ("nvenc", "x265")
+    if name in ("gpu", "auto"):
+        return card if encoder_available(card) else processor
+    if name == "cpu":
+        return processor
     return name
 
 
@@ -114,15 +125,28 @@ def encoder_args(encoder, q, info):
              "-spatial_aq", "1", "-temporal_aq", "1", "-rc-lookahead", "32", "-bf", "3"]
     elif encoder == "x265":
         v = ["-c:v", "libx265", "-crf", q, "-preset", "medium", "-x265-params", "log-level=error"]
+    elif encoder == "av1_nvenc":
+        # Unlike H.265, this one misbehaves with a high -maxrate: it ignores -cq and makes huge files.
+        v = ["-c:v", "av1_nvenc", "-preset", "p7", "-tune", "hq", "-rc", "vbr", "-cq", q, "-b:v", "0",
+             "-spatial-aq", "1", "-temporal-aq", "1", "-rc-lookahead", "32", "-bf", "3"]
+    elif encoder == "svtav1":
+        v = ["-c:v", "libsvtav1", "-crf", q, "-preset", "6", "-svtav1-params", "enable-qm=1"]
     else:
         raise ValueError(f"unknown encoder {encoder}")
-    return v + color + ["-tag:v", "hvc1"]
+    return v + color + (["-tag:v", "hvc1"] if config.ENCODER_CODEC[encoder] == "h265" else [])
 
 
-def encode_video(src, out, encoder, q, info, gate=None, on_time=None):
+def _scale(target):
+    return f"scale={target[0]}:{target[1]}:flags=lanczos"
+
+
+def encode_video(src, out, encoder, q, info, gate=None, on_time=None, target=None):
     """Video track only. Every timestamp is kept: no frames added or dropped."""
     args = ["-y", "-noautorotate", "-i", src, "-map", "0:v:0", "-an", "-sn", "-dn", "-map_metadata", "-1",
-            "-fps_mode", "passthrough", "-enc_time_base", "demux"] + encoder_args(encoder, q, info) + [out]
+            "-fps_mode", "passthrough", "-enc_time_base", "demux"]
+    if target:
+        args += ["-vf", _scale(target)]
+    args += encoder_args(encoder, q, info) + [out]
     return run_ffmpeg(args, gate, on_time)
 
 
@@ -144,13 +168,14 @@ class Score:
         return self.mean >= config.VMAF_MEAN_MIN + margin and self.p1 >= config.VMAF_P1_MIN + margin
 
 
-def measure_vmaf(distorted, reference, info, work_dir, gate=None, on_time=None):
-    """Scores every frame, no skipping. 4K must also pass the 4K VMAF model."""
-    big = max(info.width, info.height) >= 2560
+def measure_vmaf(distorted, reference, info, work_dir, gate=None, on_time=None, target=None):
+    """Scores every frame, no skipping. 4K must also pass the 4K VMAF model.
+    With a target size, the comparison is against a copy of the original shrunk to it."""
+    big = max(target or (info.width, info.height)) >= 2560
     models = "version=vmaf_v0.6.1\\:name=hd" + ("|version=vmaf_4k_v0.6.1\\:name=uhd" if big else "")
     log = "vmaf.json"
     threads = max(2, (os.cpu_count() or 4) - 2)
-    graph = ("[0:v]setpts=PTS-STARTPTS[d];[1:v]setpts=PTS-STARTPTS[r];"
+    graph = ("[0:v]setpts=PTS-STARTPTS[d];[1:v]setpts=PTS-STARTPTS" + (f",{_scale(target)}" if target else "") + "[r];"
              f"[d][r]libvmaf=log_fmt=json:log_path={log}:n_threads={threads}:model='{models}'")
     code, err = run_ffmpeg(["-noautorotate", "-i", Path(distorted).resolve(), "-noautorotate", "-i",
                             Path(reference).resolve(), "-lavfi", graph, "-f", "null", "-"], gate, on_time,
@@ -204,7 +229,7 @@ class SearchResult:
     rows: dict = field(default_factory=dict)  # ladder index -> [SampleRow]
 
 
-def search_quality(segments, encoder, ladder, info, work_dir, guess=None, gate=None, on_step=None):
+def search_quality(segments, encoder, ladder, info, work_dir, guess=None, gate=None, on_step=None, target=None):
     """Finds the loosest setting (smallest file) whose samples clear the bar.
     Falls back to the strictest setting, passed=False, if none clears it."""
     res = SearchResult(index=len(ladder) - 1, passed=False)
@@ -214,11 +239,11 @@ def search_quality(segments, encoder, ladder, info, work_dir, guess=None, gate=N
         for n, (at, seg) in enumerate(segments):
             out = Path(work_dir) / f"try_{i}_{n}.mp4"
             t0 = time.time()
-            code, err = encode_video(seg, out, encoder, ladder[i], info, gate)
+            code, err = encode_video(seg, out, encoder, ladder[i], info, gate, target=target)
             t1 = time.time()
             if code or not out.exists():
                 raise RuntimeError(f"the encoder failed: {err.strip()[-300:]}")
-            s = measure_vmaf(out, seg, info, work_dir, gate)
+            s = measure_vmaf(out, seg, info, work_dir, gate, target=target)
             rows.append(SampleRow(at, Path(seg), out.stat().st_size, s, t1 - t0, time.time() - t1))
             out.unlink()
             ok = ok and s.passes(config.SAMPLE_MARGIN)

@@ -8,7 +8,7 @@ This section is for anyone who wants to shrink a folder of H.264 videos with Cli
 - The installer, `ClipShrink-Setup.exe`. It installs for your user only and asks for no administrator password.
 - A folder of H.264 videos (the format most phones, cameras and action cams record in).
 
-An NVIDIA graphics card makes conversion much faster and is used automatically. Other PCs use the processor, which is slower but works the same way.
+An NVIDIA graphics card makes conversion much faster and is used by default. Other PCs use the processor, which is slower but works the same way.
 
 ## In this section
 

@@ -11,6 +11,10 @@ ClipShrink judges every conversion with **VMAF**, a score that compares the conv
 - **Worst 1%:** the 1st percentile of the per-frame scores, linearly interpolated. It is a floor for the bad moments, not the mean of the worst frames.
 - **Models:** `vmaf_v0.6.1` always. If the video is 2560 pixels or more in width or height, `vmaf_4k_v0.6.1` is also run, and the lower average and the lower worst 1% each count. Both models are built into FFmpeg.
 
+## With a smaller size chosen
+
+If **Largest size** in Settings shrinks a video, the reference is shrunk to the same size with the same scaler before VMAF runs, on both the samples and the finished file. The score therefore measures the encoding only. The file is labelled Resized rather than Verified, and the original's extra detail isn't counted. The larger 4K model is used according to the shrunken size.
+
 ## Two measurements
 
 | Stage | What is scored | Margin |

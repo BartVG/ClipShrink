@@ -20,7 +20,7 @@ More in [Estimates](../user-guide/estimates.md).
 
 ## 3. Convert
 
-Click **Start converting**. Each conversion is saved beside its original with `_H265` added to the name. You can pause at any time, and if the PC crashes, reopen the app to continue.
+Click **Start converting**. Each conversion is saved beside its original with `_H265` added to the name (`_AV1` if you chose AV1 in [Settings](../user-guide/settings-and-data.md)). You can pause at any time, and if the PC crashes, reopen the app to continue.
 
 ![The Convert page with progress bars for a running batch](../images/3-convert.png)
 

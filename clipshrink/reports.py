@@ -7,9 +7,10 @@ from pathlib import Path
 from . import config, db
 
 COLUMNS = ["Date", "File", "Folder", "Result", "Reason", "Before (bytes)", "After (bytes)", "Saved %",
-           "VMAF average", "VMAF worst 1%", "Encoder", "Quality setting", "Conversion"]
+           "VMAF average", "VMAF worst 1%", "Encoder", "Quality setting", "Conversion", "Codec", "Output resolution",
+           "Output bitrate (Mbit/s)"]
 INT_COLUMNS = {"Before (bytes)", "After (bytes)"}
-FLOAT_COLUMNS = {"Saved %", "VMAF average", "VMAF worst 1%", "Quality setting"}
+FLOAT_COLUMNS = {"Saved %", "VMAF average", "VMAF worst 1%", "Quality setting", "Output bitrate (Mbit/s)"}
 CONVERTED = ("verified", "below_bar", "original_deleted")
 
 
@@ -29,7 +30,7 @@ def _row(r):
         "Date": datetime.datetime.fromtimestamp(r.updated or 0).strftime("%Y-%m-%d %H:%M:%S"),
         "File": _safe(Path(r.source).name),
         "Folder": _safe(Path(r.source).parent),
-        "Result": config.STATUS_TEXT.get(r.status, r.status),
+        "Result": config.status_text(r),
         "Reason": _safe(r.reason),
         "Before (bytes)": r.source_size,
         "After (bytes)": r.output_size if converted else "",
@@ -39,6 +40,9 @@ def _row(r):
         "Encoder": r.encoder,
         "Quality setting": r.quality if r.quality is not None else "",
         "Conversion": _safe(r.output) if converted else "",
+        "Codec": config.CODEC_NAMES.get(r.codec, "") if converted else "",
+        "Output resolution": f"{r.output_width}x{r.output_height}" if converted and r.output_width else "",
+        "Output bitrate (Mbit/s)": round(r.output_bitrate_mbit, 2) if converted and r.output_bitrate_mbit else "",
     }
 
 

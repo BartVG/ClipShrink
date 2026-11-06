@@ -9,6 +9,7 @@ These appear in the **State** column while converting and in the **Result** colu
 | Status | Meaning | What to do |
 |---|---|---|
 | Verified | The conversion matched the original and cleared the quality bar. | Compare if you like, then clean up. |
+| Resized | Shrunk as you asked in Settings. It matched the original and cleared the bar against a shrunken copy of it. | Compare if you like. Its original still holds more detail. |
 | ⚠ Below the bar | The conversion is smaller and matches, but its VMAF score is under the bar (average 95, worst 1% 90), even at the strictest setting tried. | Play it side by side before removing its original. |
 | Original kept | ClipShrink refused the result and left your original alone. The reason is in the tooltip and in "Needs your attention". | Nothing. Your original is untouched. |
 | Failed, original kept | Something went wrong while converting. | Nothing is lost. See the reason. |
@@ -32,7 +33,7 @@ Files you already converted are listed with their earlier result and are not tic
 | Message | When it appears | What to do |
 |---|---|---|
 | ⚠ No, would get a warning | In "Clears the bar?": a test sample scored under the bar. | Expect a warning sign on similar files. |
-| Could not measure: "The test encode stopped: …" | The test encodes failed. | Try again, or choose another speed. |
+| Could not measure: "The test encode stopped: …" | The test encodes failed. | Try again, or change **Encode with** in Settings. |
 
 ## Convert
 
@@ -77,7 +78,9 @@ Reasons a delete is refused, all shown next to the file name:
 - the converted file has changed since it was verified
 - the converted file's content does not match what was verified
 - the converted file cannot be read: …
-- the converted file is not H.265
+- the converted file is not H.265 or AV1
+- its conversion is below the quality bar, and that was not confirmed
+- its conversion has a lower resolution, and that was not confirmed
 - Windows did not move it to the Recycle Bin, so it was left in place
 
 Reasons a rename is refused:

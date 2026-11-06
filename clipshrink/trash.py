@@ -108,8 +108,8 @@ def why_not_deletable(rec, deep=False):
             info = scan.probe_file(rec.output)
         except Exception as ex:
             return f"the converted file cannot be read: {ex}"
-        if info.codec != "hevc":
-            return "the converted file is not H.265"
+        if info.codec not in ("hevc", "av1"):
+            return "the converted file is not H.265 or AV1"
     return None
 
 
@@ -119,7 +119,8 @@ def deletable(db_path):
     return [r for r in recs if why_not_deletable(r) is None]
 
 
-def delete_originals(db_path, paths, confirmed=False, below_bar_confirmed=False, on_progress=None):
+def delete_originals(db_path, paths, confirmed=False, below_bar_confirmed=False, on_progress=None,
+                     resized_confirmed=False):
     """on_progress(done, total, path) is called before each file and once at the end."""
     res = DeleteResult()
     paths = list(paths)
@@ -134,6 +135,8 @@ def delete_originals(db_path, paths, confirmed=False, below_bar_confirmed=False,
         reason = why_not_deletable(rec, deep=True)
         if not reason and rec.status == "below_bar" and below_bar_confirmed is not True:
             reason = "its conversion is below the quality bar, and that was not confirmed"
+        if not reason and rec.resized and resized_confirmed is not True:
+            reason = "its conversion has a lower resolution, and that was not confirmed"
         if reason:
             res.refused.append((p, reason))
             continue

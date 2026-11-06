@@ -6,11 +6,11 @@
 
 **Shrink your videos to free up disk space, without visible quality loss, and measure every one to be sure.**
 
-ClipShrink is a Windows app that batch converts H.264 videos to H.265. It works on any H.264 video and takes special care of GoPro files, keeping their telemetry. Every conversion is compared with its original, frame by frame. Any that miss the quality bar get a warning sign, so you decide what to keep. If a result isn't smaller, you keep the original and the app tells you.
+ClipShrink is a Windows app that batch converts H.264 videos to H.265. It works on any H.264 video and takes special care of GoPro files, keeping their telemetry. You can also choose AV1, or shrink big videos to 4K, 1080p or 720p, in Settings. Every conversion is compared with its original, frame by frame. Any that miss the quality bar get a warning sign, so you decide what to keep. If a result isn't smaller, you keep the original and the app tells you.
 
 ![The Compare and clean up page, listing verified conversions with sizes and quality scores](docs/images/4-compare-and-clean-up.png)
 
-*Screenshots show real GoPro footage. The find, compare and reports pages show one real 34-clip batch, redrawn from its saved results. The saving and convert pages show a run on one clip from it. Folder paths are replaced with a neutral one.*
+*Screenshots show real GoPro footage. The find, compare and reports pages show one real 34-clip batch, redrawn from its saved results. The saving and convert pages show a run on one clip from it, and the settings page shows the defaults. Folder paths are replaced with a neutral one.*
 
 ## Download
 
@@ -59,6 +59,11 @@ Play any original beside its conversion, in sync, with frame stepping and a 100%
 
 Click any column title to sort. **Select All** and **Select Recommended** tick files for you, and Recommended leaves out anything with a warning sign. When you're happy, you can send originals to the Recycle Bin, then remove `_H265` from the new names. Both steps are optional, ask you to confirm and show a progress bar.
 
+### Settings
+The defaults suit most people. If you want, you can choose the graphics card or the processor, H.265 or AV1, and a largest size. Shrinking loses detail for good, so those conversions are labelled Resized, and they're checked against a shrunken copy of the original. You can also show an Encoding column with the format, quality setting, resolution and bitrate.
+
+![Settings page](docs/images/6-settings.png)
+
 ### Reports and statistics
 Every batch keeps its own report automatically. The **Reports & Statistics** page shows the space you've saved since you started using the app and your average file reduction, and lets you export reports as CSV, XLSX or PDF, or delete them.
 
@@ -89,9 +94,11 @@ That's a measurement, not a mathematical guarantee. Use the side by side player 
 - **Windows only**, with one file converted at a time.
 - **File types:** full conversions have been tested on MP4 files. MOV, MKV and others are found by the scan, but conversions of them haven't been tested yet.
 - **Real-world testing so far:** one person's GoPro footage, plus generated test clips.
-- **Speed:** NVIDIA graphics cards are used automatically and are much faster. Other PCs use the processor.
+- **Speed:** NVIDIA graphics cards are used by default and are much faster. Other PCs use the processor.
+- **AV1:** it plays on fewer devices, and whether GoPro's own software accepts it hasn't been tested. On one real clip it made a file of 23.5 MB with the graphics card and 17.8 MB with the processor, against 25.9 MB for H.265. It has only been tested on that clip and on generated clips.
 - **Telemetry:** tested on generated tracks in GoPro's format and on a HERO3-era clip, which has no telemetry track. It hasn't yet been tested on a real HERO5-or-later file with GPS data. Check a clip in your own telemetry tool before deleting its original.
 - **Google Drive for desktop:** the Recycle Bin hasn't been tested on a Drive-mounted `G:` drive. Try one small file first, and cancel if Windows warns about permanent deletion.
+- **Shrinking:** tested on generated clips only, including 5.3K, 4K, portrait and rotated video. It hasn't been tested on real footage yet.
 - **Very large files:** nothing over 4 GB has been tested yet, and 4K has only been tested on short clips.
 - **Compatibility:** H.265 plays on most devices from about 2016 onwards, but some older ones can't play it.
 

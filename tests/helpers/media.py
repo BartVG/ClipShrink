@@ -60,14 +60,15 @@ def percentile(values, pct):
     return a[lo] + (a[hi] - a[lo]) * (i - lo)
 
 
-def measure_vmaf(distorted, reference, log_dir):
-    """Own VMAF measurement. 4K clips must also pass the 4K model."""
+def measure_vmaf(distorted, reference, log_dir, ref_scale=None):
+    """Own VMAF measurement. 4K clips must also pass the 4K model. With ref_scale,
+    the reference is shrunk to that size first."""
     p = probe(reference)
-    tall = max(vstream(p)["width"], vstream(p)["height"]) >= 2560
+    tall = max(ref_scale or (vstream(p)["width"], vstream(p)["height"])) >= 2560
     models = "version=vmaf_v0.6.1\\:name=a" + ("|version=vmaf_4k_v0.6.1\\:name=b" if tall else "")
     log = Path(log_dir) / f"vmaf_{os.getpid()}_{abs(hash(str(distorted)))}.json"
     name = log.name
-    graph = ("[0:v]setpts=PTS-STARTPTS[d];[1:v]setpts=PTS-STARTPTS[r];"
+    graph = ("[0:v]setpts=PTS-STARTPTS[d];[1:v]setpts=PTS-STARTPTS" + (f",scale={ref_scale[0]}:{ref_scale[1]}:flags=lanczos" if ref_scale else "") + "[r];"
              f"[d][r]libvmaf=log_fmt=json:log_path={name}:n_threads=16:model='{models}'")
     r = run([FFMPEG, "-hide_banner", "-nostdin", "-noautorotate", "-i", str(distorted), "-noautorotate",
              "-i", str(reference), "-lavfi", graph, "-f", "null", "-"], cwd=str(log_dir))

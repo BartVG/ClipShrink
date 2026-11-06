@@ -34,7 +34,7 @@ flowchart TD
 
 ## The state database
 
-The file is `%LOCALAPPDATA%\ClipShrink\state.db`, a SQLite database in WAL mode with full synchronous writes. It has one table, `files`, keyed by the source path (case-insensitive), with the status, reason, size and modified time of the source and the output, the output's SHA-256, both VMAF values, the encoder, the quality setting and the number of encodes.
+The file is `%LOCALAPPDATA%\ClipShrink\state.db`, a SQLite database in WAL mode with full synchronous writes. It has one table, `files`, keyed by the source path (case-insensitive), with the status, reason, size and modified time of the source and the output, the output's SHA-256, both VMAF values, the encoder, the quality setting, the number of encodes, and since 1.4 the format, both sizes and the duration. Older databases gain these columns automatically.
 
 | Status | Shown as |
 |---|---|
@@ -46,6 +46,8 @@ The file is `%LOCALAPPDATA%\ClipShrink\state.db`, a SQLite database in WAL mode 
 | `failed` | Failed, original kept |
 | `original_deleted` | Original in Recycle Bin |
 
+A `verified` conversion at a smaller size is shown as "Resized". That is worked out from its stored sizes, so it isn't a separate status.
+
 "Done, has the original's name" is shown for a deleted original whose conversion was renamed; it is a display state, not a stored one.
 
 When you add files that are already in the database, a file counts as unchanged when its size and modified time match the record. Conversions that are verified or below the bar are kept only while the output file still exists with the recorded size and time.
@@ -56,7 +58,7 @@ When you add files that are already in the database, a file counts as unchanged 
 
 ## Work and `.part` files
 
-Encoder output is written under the work folder (`%LOCALAPPDATA%\ClipShrink\work` in the app). The one partial file beside the original is `<name>_H265<ext>.part`, written during the final copy and renamed when complete.
+Encoder output is written under the work folder (`%LOCALAPPDATA%\ClipShrink\work` in the app). The one partial file beside the original is `<name>_H265<ext>.part` (or `_AV1`), written during the final copy and renamed when complete.
 
 ## Next steps
 

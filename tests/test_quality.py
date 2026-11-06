@@ -23,11 +23,11 @@ def audio_digest(path):
     return r.stdout
 
 
-def assert_conversion_is_good(src, out, log_dir):
+def assert_conversion_is_good(src, out, log_dir, codec="hevc"):
     assert Path(out).exists(), "no conversion was written"
     ps, po = probe(src), probe(out)
     vs, vo = vstream(ps), vstream(po)
-    assert vo["codec_name"] == "hevc", f"not H.265: {vo['codec_name']}"
+    assert vo["codec_name"] == codec, f"not {codec}: {vo['codec_name']}"
     assert (vo["width"], vo["height"]) == (vs["width"], vs["height"]), "resolution changed"
     assert rotation(vo) == rotation(vs), "rotation changed"
     assert vo["pix_fmt"].replace("yuvj", "yuv") == vs["pix_fmt"].replace("yuvj", "yuv"), "pixel format changed"

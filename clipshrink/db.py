@@ -5,7 +5,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 _COLS = ["source", "status", "reason", "source_size", "source_mtime_ns", "output", "output_size", "output_mtime_ns",
-         "output_sha256", "vmaf_mean", "vmaf_p1", "encoder", "quality", "encode_runs", "updated"]
+         "output_sha256", "vmaf_mean", "vmaf_p1", "encoder", "quality", "encode_runs", "updated", "codec", "source_width",
+         "source_height", "output_width", "output_height", "duration"]
+_ADDED = {"codec": "TEXT DEFAULT ''", "source_width": "INT DEFAULT 0", "source_height": "INT DEFAULT 0",
+          "output_width": "INT DEFAULT 0", "output_height": "INT DEFAULT 0", "duration": "REAL DEFAULT 0"}
 
 
 @dataclass
@@ -25,6 +28,20 @@ class Record:
     quality: float = None
     encode_runs: int = 0
     updated: float = 0.0
+    codec: str = ""
+    source_width: int = 0
+    source_height: int = 0
+    output_width: int = 0
+    output_height: int = 0
+    duration: float = 0.0
+
+    @property
+    def resized(self):
+        return bool(self.output_width and self.source_width and self.output_width != self.source_width)
+
+    @property
+    def output_bitrate_mbit(self):
+        return self.output_size * 8 / self.duration / 1e6 if self.duration and self.output_size else None
 
 
 def _connect(path):
@@ -35,6 +52,10 @@ def _connect(path):
     c.execute("""CREATE TABLE IF NOT EXISTS files(source TEXT PRIMARY KEY COLLATE NOCASE, status TEXT, reason TEXT,
         source_size INT, source_mtime_ns INT, output TEXT, output_size INT, output_mtime_ns INT, output_sha256 TEXT,
         vmaf_mean REAL, vmaf_p1 REAL, encoder TEXT, quality REAL, encode_runs INT, updated REAL)""")
+    have = {row[1] for row in c.execute("PRAGMA table_info(files)")}
+    for name, kind in _ADDED.items():       # older databases gain the new columns
+        if name not in have:
+            c.execute(f"ALTER TABLE files ADD COLUMN {name} {kind}")
     return c
 
 

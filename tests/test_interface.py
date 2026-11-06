@@ -199,7 +199,7 @@ def test_ticks_stay_on_the_right_files_with_skipped_rows_present(dark_review, wo
 def test_version_is_one_place_and_shown(window):
     from pathlib import Path
     from clipshrink import config
-    assert config.VERSION == "1.3"
+    assert config.VERSION == "1.4"
     assert config.VERSION in window.windowTitle()
     iss = (Path(__file__).resolve().parents[1] / "installer" / "clipshrink.iss").read_text(encoding="utf-8")
     assert f"AppVersion={config.VERSION}" in iss
@@ -405,16 +405,16 @@ def test_no_google_drive_storage_warning_anywhere_in_the_window(workspace, qapp_
 # --- Sidebar: About, and Reports & Statistics
 def test_sidebar_order_about_reports_then_quality_help(window):
     names = window.sidebar_buttons()
-    assert names[:2] == ["About", "Reports & Statistics"]
+    assert names[:3] == ["Settings", "About", "Reports & Statistics"]
     assert window.reports_btn.text() == "Reports && Statistics", "a single & would show as an underscore"
-    assert "quality" in names[2].lower()
+    assert "quality" in names[3].lower()
 
 
 def test_about_page_says_what_this_is(window):
     window.about_btn.click()
     t = window.about_text().replace("\n", " ")
     assert window.stack.currentWidget() is window.about_page
-    assert "ClipShrink" in t and "1.3" in t and "GPL" in t and "github.com/tophe323/ClipShrink" in t
+    assert "ClipShrink" in t and "1.4" in t and "GPL" in t and "github.com/tophe323/ClipShrink" in t
     assert "FFmpeg" in t and "mpv" in t
 
 
@@ -503,3 +503,105 @@ def test_delete_and_rename_report_progress_for_each_file(workspace):
     calls.clear()
     trash.remove_suffix(workspace / "s.db", ["a"], confirmed=False, on_progress=lambda *a: calls.append(a))
     assert [c[:2] for c in calls] == [(0, 1), (1, 1)]
+
+
+# --- The Convert page: cards, thin bars, filter tabs, status pills
+def _conv_records(workspace, w):
+    from clipshrink import db
+    made = []
+    for name, status, before, after in (("a.mp4", "verified", 1000, 400), ("b.mp4", "below_bar", 1000, 500),
+                                        ("c.mp4", "kept_original", 500, 0), ("d.mp4", "pending", 700, 0),
+                                        ("e.mp4", "pending", 300, 0)):
+        made.append(db.Record(source=str(workspace / "videos" / name), status=status, source_size=before,
+                              output_size=after, vmaf_mean=97.0 if after else None, vmaf_p1=92.0 if after else None))
+    w._fill_conv_table([r.source for r in made])
+    for r in made:
+        w._show_row(r)
+    return made
+
+
+def _visible_names(t):
+    return [t.item(r, 0).text() for r in range(t.rowCount()) if not t.isRowHidden(r)]
+
+
+def test_convert_cards_show_real_totals(window, workspace):
+    made = _conv_records(workspace, window)
+    c = window.conv_cards
+    assert c["Files Processed"].text() == "3 / 5"
+    assert c["Space Saved"].text() == "1.1 KB (-55%)", "1,100 saved of the 2,000 bytes converted"
+    assert c["Current Batch"].text() == "3.5 KB"
+    t = window.conv_table
+    assert t.item(_row_of_named(t, "a.mp4", "File"), _col(t, "% Saved")).text() == "60%"
+    assert t.item(_row_of_named(t, "a.mp4", "File"), _col(t, "After")).text() != t.item(
+        _row_of_named(t, "a.mp4", "File"), _col(t, "Before")).text()
+
+
+def test_convert_filter_tabs(window, workspace):
+    made = _conv_records(workspace, window)
+    window._set_conv_stage(made[3].source, "Encoding")
+    assert window.conv_tabs["Completed"].text() == "Completed  3"
+    assert window.conv_tabs["Active"].text() == "Active  1"
+    assert window.conv_tabs["Waiting"].text() == "Waiting  1"
+    t = window.conv_table
+    window.conv_tabs["Completed"].click()
+    assert sorted(_visible_names(t)) == ["a.mp4", "b.mp4", "c.mp4"]
+    window.conv_tabs["Active"].click()
+    assert _visible_names(t) == ["d.mp4"]
+    window.conv_tabs["Waiting"].click()
+    assert _visible_names(t) == ["e.mp4"]
+    window.conv_tabs["All"].click()
+    assert len(_visible_names(t)) == 5
+
+
+def test_filter_survives_sorting(window, workspace, qapp_instance):
+    from PySide6.QtCore import Qt
+    _conv_records(workspace, window)
+    t = window.conv_table
+    window.conv_tabs["Waiting"].click()
+    t.sortItems(_col(t, "Before"), Qt.DescendingOrder)
+    window._apply_conv_filter()
+    assert sorted(_visible_names(t)) == ["d.mp4", "e.mp4"]
+
+
+def test_time_remaining_wording():
+    from clipshrink.ui import short_time
+    assert short_time(12720) == "~3h 32m left"
+    assert short_time(600) == "~10m left"
+    assert short_time(5) == "~1m left"
+
+
+def test_status_pills_use_meaningful_colours():
+    from clipshrink.ui import pill_colours
+    good, active, warn, bad, idle = [pill_colours(x)[0] for x in
+                                     ("Verified", "Encoding", "⚠ Below the bar", "Failed, original kept", "Waiting")]
+    assert len({good, active, warn, bad, idle}) == 5
+
+
+def test_sidebar_ticks_finished_steps(window):
+    window.show()
+    window.go(2)
+    assert [not c.isHidden() for c in window.step_checks] == [True, True, False, False]
+    window.go(0)
+    assert not any(not c.isHidden() for c in window.step_checks)
+
+
+def test_start_button_gives_way_to_pause_and_comes_back(dark_review, workspace, qapp_instance, get_clip):
+    import time
+    from conftest import copy_preserving
+    from clipshrink.estimate import Estimate
+    w = dark_review
+    src = copy_preserving(get_clip("no_audio_no_telemetry"), workspace / "videos" / "real.mp4")
+    assert w.pause_btn.isHidden()
+    w.start_batch([str(src)])
+    assert w.start_btn.isHidden() and not w.pause_btn.isHidden()
+    end = time.time() + 120
+    while w.busy and time.time() < end:
+        qapp_instance.processEvents()
+        time.sleep(0.01)
+    qapp_instance.processEvents()
+    assert not w.busy
+    assert w.conv_cards["Files Processed"].text() == "1 / 1"
+    assert w.conv_cards["Time Remaining"].text() == "Done"
+    assert "(-" in w.conv_cards["Space Saved"].text()
+    w._estimate_done(Estimate(10, 5, 4, 6, 60.0, "x265", [], 1))
+    assert not w.start_btn.isHidden() and w.pause_btn.isHidden()

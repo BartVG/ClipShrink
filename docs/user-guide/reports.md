@@ -17,13 +17,14 @@ The report is a CSV file named `report_YYYY-MM-DD_HHMMSS.csv` (with `_2`, `_3` a
 |---|---|
 | Date | When the file was processed |
 | File, Folder | Which video |
-| Result | For example "Verified", "⚠ Below the bar", "Original kept" |
+| Result | For example "Verified", "Resized", "⚠ Below the bar", "Original kept" |
 | Reason | Why a file was kept or warned about |
 | Before (bytes), After (bytes) | Sizes of the original and the conversion |
 | Saved % | `1 - after / before`, to one decimal |
 | VMAF average, VMAF worst 1% | The measured scores, to two decimals |
 | Encoder, Quality setting | What was used |
 | Conversion | Path of the converted file |
+| Codec, Output resolution, Output bitrate (Mbit/s) | The format, size and bitrate of the conversion. Since 1.4, and blank for conversions made earlier. |
 
 After, Saved % and Conversion are filled in only for files that were converted.
 

@@ -19,11 +19,12 @@ def sha256_file(path, checkpoint=None):
                 checkpoint()
 
 
-def output_path_for(src):
+def output_path_for(src, codec="h265"):
     src = Path(src)
-    ext = src.suffix if src.suffix.lower() in (".mp4", ".mov", ".m4v") else (
-        ".mp4" if src.suffix.lower() == ".lrv" else ".mkv")
-    return src.with_name(f"{src.stem}{config.OUTPUT_SUFFIX}{ext}")
+    keep = (".mp4", ".m4v") if codec == "av1" else (".mp4", ".mov", ".m4v")
+    ext = src.suffix if src.suffix.lower() in keep else (
+        ".mp4" if src.suffix.lower() in (".lrv", ".mov") else ".mkv")
+    return src.with_name(f"{src.stem}{config.CODEC_SUFFIX[codec]}{ext}")
 
 
 def fingerprint_matches(rec):
@@ -50,10 +51,13 @@ class Verdict(Exception):
 
 
 class Converter:
-    def __init__(self, db_path, work_dir, encoder="auto", ladder=None, on_event=None, only=None):
+    def __init__(self, db_path, work_dir, encoder="auto", ladder=None, on_event=None, only=None, codec="h265",
+                 max_resolution="original"):
         self.db_path = Path(db_path)
         self.work_dir = Path(work_dir)
-        self.encoder = encode.resolve_encoder(encoder)
+        self.codec = codec
+        self.max_resolution = max_resolution
+        self.encoder = encode.resolve_encoder(encoder, codec)
         self.ladder = list(ladder) if ladder else list(config.LADDERS[self.encoder])
         self.on_event = on_event or (lambda ev: None)
         self.gate = encode.Gate()
@@ -69,8 +73,8 @@ class Converter:
         for r in db.read_records(self.db_path, "encoding"):
             r.status = "pending"
             db.save(self.db_path, r)
-            part = Path(str(output_path_for(r.source)) + ".part")
-            part.unlink(missing_ok=True)
+            for codec in config.CODEC_SUFFIX:
+                Path(str(output_path_for(r.source, codec)) + ".part").unlink(missing_ok=True)
         if self.work_dir.exists():
             for d in self.work_dir.glob("job_*"):
                 shutil.rmtree(d, ignore_errors=True)
@@ -189,7 +193,7 @@ class Converter:
             db.save(self.db_path, rec)
         finally:
             shutil.rmtree(work, ignore_errors=True)
-            Path(str(output_path_for(src)) + ".part").unlink(missing_ok=True)
+            Path(str(output_path_for(src, self.codec)) + ".part").unlink(missing_ok=True)
 
     def _finish_kept(self, rec, v):
         rec.status = "kept_original"
@@ -206,6 +210,7 @@ class Converter:
             raise Verdict(f"This is {info.codec}, not H.264, so it was left alone.")
         progress(0.0, "search")
         tmp_src_stat = (info.size, info.mtime_ns)
+        target = config.target_size(info.width, info.height, self.max_resolution)
         segments = encode.cut_segments(src, info, work, gate=gate)
         steps = max(2, len(self.ladder) // 2)
         done_steps = [0]
@@ -215,7 +220,7 @@ class Converter:
             progress(WEIGHTS["search"] * min(1.0, done_steps[0] / steps), "search")
 
         found = encode.search_quality(segments, self.encoder, self.ladder, info, work,
-                                      guess=self._hints.get(info.group), gate=gate, on_step=on_step)
+                                      guess=self._hints.get(info.group), gate=gate, on_step=on_step, target=target)
         self._hints[info.group] = found.index
         for at, seg in segments:
             if Path(seg).parent == work:
@@ -232,11 +237,11 @@ class Converter:
             def on_enc(t, base=base):
                 progress(base + WEIGHTS["encode"] * min(1.0, t / (info.duration or 1)), "encode")
 
-            code, err = encode.encode_video(src, video, self.encoder, q, info, gate, on_enc)
+            code, err = encode.encode_video(src, video, self.encoder, q, info, gate, on_enc, target)
             if code or not video.exists():
                 raise RuntimeError(f"the encoder stopped: {err.strip()[-300:]}")
-            built = work / f"built{output_path_for(src).suffix}"
-            self._build(src, video, built, gate)
+            built = work / f"built{output_path_for(src, self.codec).suffix}"
+            self._build(src, video, built, gate, bool(target))
             progress(base + WEIGHTS["encode"], "verify")
             base2 = base + WEIGHTS["encode"]
 
@@ -244,7 +249,7 @@ class Converter:
                 progress(base2 + WEIGHTS["verify"] * min(1.0, t / (info.duration or 1)), "verify")
 
             try:
-                score = self._verify(src, built, info, work, gate, on_ver)
+                score = self._verify(src, built, info, work, gate, on_ver, target)
             except Verdict as v:
                 if v.retry_stricter:
                     kept = work / f"best{built.suffix}"
@@ -262,24 +267,25 @@ class Converter:
             self._deliver(rec, best[0], info, best[1], tmp_src_stat, gate, "below_bar", best[2])
             progress(1.0, "done")
 
-    def _build(self, src, video, built, gate):
+    def _build(self, src, video, built, gate, resized=False):
         if Path(src).suffix.lower() in config.GRAFT_EXTS:
-            mp4graft.graft(src, video, built, gate.checkpoint)
+            mp4graft.graft(src, video, built, gate.checkpoint, resized=resized)
             return
         code, err = encode.run_ffmpeg(["-y", "-i", video, "-i", src, "-map", "0:v", "-map", "1:a?", "-map", "1:s?",
                                        "-map_metadata", "1", "-c", "copy", built], gate)
         if code:
             raise RuntimeError(f"could not write the file: {err.strip()[-300:]}")
 
-    def _verify(self, src, built, info, work, gate, on_time):
+    def _verify(self, src, built, info, work, gate, on_time, target=None):
         """Every check must pass before the file is delivered. Raises Verdict."""
         out = scan.probe_file(built)
         if out.size >= info.size:
             raise Verdict(f"Conversion is not smaller ({out.size:,} vs {info.size:,} bytes), original kept.")
         problems = []
-        if out.codec != "hevc":
+        wanted = "av1" if self.codec == "av1" else "hevc"
+        if out.codec != wanted:
             problems.append(f"video is {out.codec}")
-        if (out.width, out.height) != (info.width, info.height):
+        if (out.width, out.height) != (target or (info.width, info.height)):
             problems.append("resolution differs")
         if out.pix_fmt.replace("yuvj", "yuv") != info.pix_fmt.replace("yuvj", "yuv"):
             problems.append(f"pixel format differs ({out.pix_fmt} vs {info.pix_fmt})")
@@ -300,7 +306,7 @@ class Converter:
                 problems.append("camera info changed")
         if problems:
             raise Verdict("Conversion did not match the original, original kept: " + "; ".join(problems))
-        score = encode.measure_vmaf(built, src, info, work, gate, on_time)
+        score = encode.measure_vmaf(built, src, info, work, gate, on_time, target)
         if score.frames != nf_a:
             raise Verdict(f"VMAF compared {score.frames} frames out of {nf_a}, original kept.")
         if not score.passes():
@@ -322,10 +328,10 @@ class Converter:
         if (st.st_size, st.st_mtime_ns) != src_stat:
             raise RuntimeError("the original changed while it was being converted")
         digest = sha256_file(built, gate.checkpoint)
-        dest = output_path_for(rec.source)
+        dest = output_path_for(rec.source, self.codec)
         n = 2
         while dest.exists():
-            dest = dest.with_name(f"{Path(rec.source).stem}{config.OUTPUT_SUFFIX}_{n}{dest.suffix}")
+            dest = dest.with_name(f"{Path(rec.source).stem}{config.CODEC_SUFFIX[self.codec]}_{n}{dest.suffix}")
             n += 1
         part = Path(str(dest) + ".part")
         with open(built, "rb") as a, open(part, "wb") as b:
@@ -338,6 +344,11 @@ class Converter:
         os.replace(part, dest)
         tools.set_file_times(dest, int(st.st_ctime * 1e9), st.st_mtime_ns)
         final = os.stat(dest)
+        made = scan.probe_file(dest)
+        rec.codec = self.codec
+        rec.source_width, rec.source_height = info.width, info.height
+        rec.output_width, rec.output_height = made.width, made.height
+        rec.duration = made.duration
         rec.status = status
         rec.reason = reason
         rec.output = str(dest)

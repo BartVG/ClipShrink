@@ -180,7 +180,7 @@ def _handler_name(raw):
     return raw[hd[1] + 24:hd[2]].replace(b"\0", b"").replace(b"\r", b"").decode("latin1", "replace").strip()
 
 
-def _build_video_trak(orig, enc, movie_ts, enc_movie_ts, groups):
+def _build_video_trak(orig, enc, movie_ts, enc_movie_ts, groups, resized=False):
     """Encoded media, but the original's identity: track id, matrix (rotation),
     dimensions, timecode reference and dates."""
     o, e = orig.raw, enc.raw
@@ -191,6 +191,13 @@ def _build_video_trak(orig, enc, movie_ts, enc_movie_ts, groups):
     ev = e[etk[1]]
     enc_dur = struct.unpack_from(">Q" if ev else ">I", e, etk[1] + (28 if ev else 20))[0]
     struct.pack_into(">Q" if tv else ">I", tkhd, 8 + (28 if tv else 20), round(enc_dur * movie_ts / enc_movie_ts))
+    if resized:     # the new display size, and the rotation offset that depends on it
+        old_w = struct.unpack_from(">I", tkhd, len(tkhd) - 8)[0]
+        new_w, new_h = struct.unpack_from(">II", e, etk[2] - 8)
+        for at in (len(tkhd) - 20, len(tkhd) - 16):
+            value = struct.unpack_from(">i", tkhd, at)[0]
+            struct.pack_into(">i", tkhd, at, round(value * new_w / old_w) if old_w else value)
+        struct.pack_into(">II", tkhd, len(tkhd) - 8, new_w, new_h)
 
     parts = [bytes(tkhd)]
     tref = _find(o, 8, len(o), b"tref")
@@ -219,7 +226,8 @@ def _build_video_trak(orig, enc, movie_ts, enc_movie_ts, groups):
 
     if _handler_name(o).startswith("GoPro"):
         hd = _find(trak, 8, len(trak), b"mdia", b"hdlr")
-        trak = _replace_child(trak, (b"mdia", b"hdlr"), _box(b"hdlr", trak[hd[1]:hd[1] + 24] + b"GoPro H.265\0"))
+        label = b"GoPro AV1\0" if enc.entry == b"av01" else b"GoPro H.265\0"
+        trak = _replace_child(trak, (b"mdia", b"hdlr"), _box(b"hdlr", trak[hd[1]:hd[1] + 24] + label))
 
     rows = []
     for i, n in enumerate(groups, 1):
@@ -229,16 +237,18 @@ def _build_video_trak(orig, enc, movie_ts, enc_movie_ts, groups):
     return _replace_child(trak, STBL + (b"stsc",), stsc)
 
 
-def _ftyp(original):
+def _ftyp(original, entry=b"hvc1"):
     with open(original, "rb") as f:
         _, kind = struct.unpack(">I4s", f.read(8))
         major = f.read(4) if kind == b"ftyp" else b""
+    if entry == b"av01":
+        return _box(b"ftyp", b"mp42" + struct.pack(">I", 1) + b"mp42isomav01")
     if major == b"qt  ":
         return _box(b"ftyp", b"qt  " + struct.pack(">I", 0x20050300) + b"qt  ")
     return _box(b"ftyp", b"mp42" + struct.pack(">I", 1) + b"mp42isomhvc1")
 
 
-def graft(original, encoded, output, checkpoint=None, chunk_seconds=0.5):
+def graft(original, encoded, output, checkpoint=None, chunk_seconds=0.5, resized=False):
     """Writes `output`. Raises ValueError on anything it does not understand,
     in which case nothing is delivered and the original is kept."""
     omoov, emoov = read_moov(original), read_moov(encoded)
@@ -281,7 +291,7 @@ def graft(original, encoded, output, checkpoint=None, chunk_seconds=0.5):
     total = sum(x[3] for x in items)
     wide = total + len(omoov) + (1 << 22) >= 1 << 32
 
-    vid_trak = _build_video_trak(otracks[ov_idx], ev, movie_ts, enc_ts, groups)
+    vid_trak = _build_video_trak(otracks[ov_idx], ev, movie_ts, enc_ts, groups, resized)
 
     def build_moov(offsets):
         blob = bytearray()
@@ -298,7 +308,7 @@ def graft(original, encoded, output, checkpoint=None, chunk_seconds=0.5):
 
     offsets = {ti: [0] * (len(video_chunks) if ti == ov_idx else len(t.chunk_offsets))
                for ti, t in enumerate(otracks)}
-    ftyp = _ftyp(original)
+    ftyp = _ftyp(original, ev.entry)
     head = 16 if wide else 8
     pos = len(ftyp) + len(build_moov(offsets)) + head
     for _, ti, ci, size in items:
@@ -338,7 +348,7 @@ def nonvideo_digests(path, skip_video=True):
     vid_seen = False
     with open(path, "rb") as f:
         for t in parse_tracks(moov):
-            if t.handler == b"vide" and t.entry in (b"avc1", b"avc3", b"hvc1", b"hev1") and not vid_seen:
+            if t.handler == b"vide" and t.entry in (b"avc1", b"avc3", b"hvc1", b"hev1", b"av01") and not vid_seen:
                 vid_seen = True
                 continue
             h = hashlib.sha256()

@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.4 - 2026-11-06
+
+### Added
+- **Settings** page, remembered between runs. The defaults suit most people.
+- Choose the graphics card or the processor. This moved here from the See the saving page. The graphics card is the default, with the processor as the fallback.
+- **AV1** as an alternative to H.265, which stays the default. These files end in `_AV1`.
+- **Largest size:** shrink big videos to 4K, 1080p or 720p. Videos are never enlarged. Each is checked against a shrunken copy of its original and labelled Resized, and removing its original needs an extra confirmation.
+- An optional **Encoding** column with format, quality setting, resolution and bitrate. Reports now list these too.
+
+### Changed
+- A new look: summary cards and thin progress bars on the Convert page, filter tabs, status pills and ticks in the sidebar.
+
+### Fixed
+- The "Continue where you left off?" prompt could appear after a batch had already started.
+
 ## 1.3 - 2026-11-06
 
 ### Changed

@@ -23,7 +23,7 @@ Your originals are only read during conversion. Step 4 is the only place where y
 | [Compare and clean up](compare-and-clean-up.md) | Side-by-side player and sending originals to the Recycle Bin |
 | [Reports & Statistics](reports.md) | Totals and per-batch reports |
 | [Warnings](warnings.md) | What the warning signs and "kept original" results mean |
-| [Settings and data](settings-and-data.md) | The one option, and where ClipShrink keeps its files |
+| [Settings and data](settings-and-data.md) | Encoder, video format, largest size, Encoding column, and where ClipShrink keeps its files |
 | [FAQ](faq.md) | Short answers to common questions |
 
 ## Next steps

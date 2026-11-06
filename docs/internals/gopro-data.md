@@ -4,7 +4,7 @@ GoPro clips carry more than video and sound: a telemetry track (`gpmd`), a stabi
 
 ## What is kept
 
-The final file is the original's structure with only the H.264 video swapped for the new H.265 video.
+The final file is the original's structure with only the H.264 video swapped for the new H.265 or AV1 video.
 
 - **Other tracks:** every track other than the main video has its samples copied chunk by chunk, with its track box unchanged except the chunk offsets.
 - **Movie-level boxes:** everything in the movie box other than tracks is kept, including `udta` (camera info) and `mvhd`.
@@ -15,7 +15,7 @@ The final file is the original's structure with only the H.264 video swapped for
 | Part | What happens |
 |---|---|
 | `ftyp` (file type) | Regenerated, not copied. QuickTime originals get a QuickTime brand; others get major brand `mp42` with compatible brands `mp42`, `isom` and `hvc1`. |
-| Video handler name | If the original's handler name starts with "GoPro", the new one is "GoPro H.265". |
+| Video handler name | If the original's handler name starts with "GoPro", the new one is "GoPro H.265" or "GoPro AV1". |
 | Layout | The index (`moov`) sits at the front, followed by one `mdat`. 64-bit offsets are used when the file would reach 4 GiB. |
 | Chunking | Only the new video is regrouped into about half-second chunks. Other tracks keep their original chunking, and all tracks are interleaved by time. |
 
@@ -35,6 +35,8 @@ Files in `.mkv`, `.avi`, `.mts`, `.m2ts`, `.ts` and `.3gp` are remuxed by FFmpeg
 - there is no byte-level check of other tracks; only the list of audio codec names is compared.
 
 Output names: `.mp4`, `.mov` and `.m4v` keep their extension, `.lrv` becomes `.mp4`, and everything else becomes `.mkv`.
+
+When a smaller size is chosen in Settings, the video track's display size changes to match, along with the rotation offset that depends on it. Audio, telemetry, timecode and camera info stay byte for byte.
 
 !!! note "Test coverage"
     The test suite uses synthetic `gpmd` and `fdsc` tracks that imitate GoPro's GPMF telemetry format, camera info, and timecode. A real HERO5-or-later clip with GPS is listed as untested in the README's limitations.

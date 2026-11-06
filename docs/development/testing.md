@@ -38,10 +38,12 @@ Every clip there is converted with every available encoder, and all must pass. W
 | `test_reports.py` | Automatic report per batch, statistics, CSV, XLSX and PDF export, no overwrite, formula-injection safety, deleting a report, damaged report file |
 | `test_interface.py` | Qt interface checks run offscreen: theme, tick boxes, skipped H.265 rows, version in title, sorting, Select All/Recommended, warning sign, About, Statistics and Reports pages, progress bars |
 | `test_player.py` | Side-by-side sync, detail mode, player stopping reported as an error |
+| `test_settings.py` | Settings saved and restored, bad settings file, encoder fallback, Settings page, Encoding column, Resized label |
+| `test_codec_and_size.py` | AV1 on generated clips and the real clip, each encoder; where a resize lands; downscaling keeps tracks and clears the bar against a shrunken copy; never upscales; estimate follows settings; player with different sizes |
 
 ### Quality checks
 
-`test_quality.py` asserts that each conversion is H.265, has a VMAF mean of at least 95 and a 1st percentile of at least 90 over every frame, is smaller than the original, and keeps the dates and tracks. The NVENC encoder is only included when `hevc_nvenc` works on the machine. Two self-guards keep the bar honest: one proves a measurement can fail, and one fails if the app's own thresholds drop below 95 and 90.
+`test_quality.py` asserts that each default conversion is H.265, has a VMAF mean of at least 95 and a 1st percentile of at least 90 over every frame, is smaller than the original, and keeps the dates and tracks. The NVENC encoder is only included when `hevc_nvenc` works on the machine. Two self-guards keep the bar honest: one proves a measurement can fail, and one fails if the app's own thresholds drop below 95 and 90.
 
 ## Helpers
 
@@ -71,9 +73,9 @@ Six clips are defined: `gopro_like_1080p_telemetry`, `fullrange_60fps_telemetry`
 `.github/workflows/tests.yml` runs on every push to `main` and on every pull request, on `windows-latest` with Python 3.12. It creates a venv, installs `requirements.txt`, runs `tools\fetch_vendor.py`, and runs pytest with two exclusions:
 
 - `tests/test_quality.py::test_real_clip_supplied`, because CI has no private footage.
-- All of `tests/test_player.py` (three tests), because the workflow notes that mpv stops responding on the test machines.
+- All of `tests/test_player.py` and the side-by-side test in `tests/test_codec_and_size.py`, because the workflow notes that mpv stops responding on the test machines.
 
-NVENC tests are left out automatically when `hevc_nvenc` is unavailable. CI does not replace the full check, which runs on a developer PC. CI does not build the installer or publish anything.
+NVENC tests are left out automatically when `hevc_nvenc` or `av1_nvenc` is unavailable. CI does not replace the full check, which runs on a developer PC. CI does not build the installer or publish anything.
 
 ## Next steps
 
