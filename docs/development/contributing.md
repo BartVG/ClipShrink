@@ -51,7 +51,7 @@ It takes roughly 10 minutes and passes only if every test passes. A skipped test
 
 ## Rules for changes
 
-- **Do not weaken the check.** The bar stays at VMAF mean 95 and 1st percentile 90.
+- **Do not weaken the check.** The default target stays at VMAF mean 95 and 1st percentile 90.
 - **Originals are never modified during conversion.**
 - **Fix a bug with a test.** Add a test that fails first, then make it pass.
 - **Keep tests independent.** `tests/helpers/` must not import the app, so an app bug can't vouch for itself.

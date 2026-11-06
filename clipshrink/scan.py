@@ -1,5 +1,5 @@
 """Stage 1: walk a folder and its subfolders, list every H.264 video."""
-import json, os
+import json, os, re
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from fractions import Fraction
@@ -36,6 +36,7 @@ class ScanResult:
     h264: list = field(default_factory=list)
     other: list = field(default_factory=list)
     unreadable: list = field(default_factory=list)
+    has_conversion: dict = field(default_factory=dict)  # H.264 path -> the conversion beside it
 
 
 def probe_file(path):
@@ -66,6 +67,29 @@ def probe_file(path):
                      color_space=v.get("color_space", ""), color_primaries=v.get("color_primaries", ""),
                      color_trc=v.get("color_transfer", ""),
                      audio_codecs=[s.get("codec_name") for s in data["streams"] if s["codec_type"] == "audio"])
+
+
+_TAGS = re.compile(r"^(?P<stem>.+?)(?:_\((?:4k|1080p|720p)\))?_\((?:h265|av1)\)(?:_\d+)?$|"
+                   r"^(?P<old>.+?)_(?:H265|AV1)(?:_\d+)?$", re.IGNORECASE)
+
+
+def original_stem(path):
+    """The original's name if this file is named like a conversion, otherwise None."""
+    m = _TAGS.match(Path(path).stem)
+    return (m.group("stem") or m.group("old")) if m else None
+
+
+def find_conversions(res):
+    """Matches H.264 files with a real H.265 or AV1 file beside them, by name. No memory is involved."""
+    beside = {}
+    for f in res.other:
+        stem = original_stem(f.path)
+        if stem and f.codec in ("hevc", "av1"):
+            beside[(str(Path(f.path).parent).lower(), stem.lower())] = f.path
+    for f in res.h264:
+        hit = beside.get((str(Path(f.path).parent).lower(), Path(f.path).stem.lower()))
+        if hit:
+            res.has_conversion[f.path] = hit
 
 
 def walk_videos(root):
@@ -136,4 +160,5 @@ def scan_folder(root, on_progress=None, should_stop=None):
                 res.other.append(info)
             if on_progress:
                 on_progress(i, len(paths), p)
+    find_conversions(res)
     return res

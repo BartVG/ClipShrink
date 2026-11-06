@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.6 - 2026-11-06
+
+### Added
+- **Advanced settings:** your own VMAF values for the warning, an option to aim for them, and an optional minimum below which nothing is kept. Locked until you confirm you understand. The defaults stay at 95 / 90 with no minimum.
+- **Start Over:** after step 4, forget these files and go back to step 1.
+- **Already has a conversion:** an H.264 file with a real H.265 or AV1 conversion beside it isn't ticked. This is decided from the folder, with no memory.
+- **An icon**, on the app, its shortcuts, the taskbar and the installer.
+- **Settings names your graphics card**, and greys it out with a reason if it can't make the chosen format.
+
+### Changed
+- **ClipShrink forgets files once a batch is finished.** Exiting or clicking Start Over drops all file status, so changes made outside the app can't confuse it, such as restoring an original over its conversion. An unfinished batch is still remembered for crash recovery. Your existing history is discarded on update. Originals can only be removed through the app for the batch you just ran.
+- **Converting starts by itself:** the See the saving page's button is now Start converting, and the Start button on the Convert page is gone.
+- **About** moved to the bottom of the sidebar. It now holds the documentation link, a clickable reports folder and the "What does "no quality loss" mean?" explanation, which replaces its own button.
+- **"Clears the bar?" is now "Meets the quality target?"**, and "target" replaces "bar" throughout.
+
+### Removed
+- **Reports & Statistics.** Each batch still leaves a CSV report in the reports folder, for your information. Lifetime statistics and in-app XLSX and PDF export are gone, along with the openpyxl library.
+
 ## 1.5.1 - 2026-11-06
 
 ### Changed

@@ -17,6 +17,20 @@ class Settings:
     codec: str = "h265"
     max_resolution: str = "original"
     show_details: bool = False
+    advanced: bool = False
+    warn_mean: float = config.VMAF_MEAN_MIN
+    warn_p1: float = config.VMAF_P1_MIN
+    aim: bool = False
+    use_minimum: bool = False
+    min_mean: float = 80.0
+    min_p1: float = 70.0
+
+    def policy(self):
+        """The defaults apply until the user has unlocked the advanced values."""
+        if not self.advanced:
+            return config.DEFAULT_QUALITY
+        return config.QualityPolicy(self.warn_mean, self.warn_p1, self.aim, self.min_mean if self.use_minimum else None,
+                                    self.min_p1 if self.use_minimum else None)
 
 
 def path_for(db_path):
@@ -35,8 +49,16 @@ def load(db_path):
     for key, allowed in CHOICES.items():
         if data.get(key) in allowed:
             setattr(out, key, data[key])
-    if isinstance(data.get("show_details"), bool):
-        out.show_details = data["show_details"]
+    for key in ("show_details", "advanced", "aim", "use_minimum"):
+        if isinstance(data.get(key), bool):
+            setattr(out, key, data[key])
+    numbers = {k: data.get(k, getattr(out, k)) for k in ("warn_mean", "warn_p1", "min_mean", "min_p1")}
+    fine = all(isinstance(v, (int, float)) and not isinstance(v, bool) and 0 <= v <= 100 for v in numbers.values())
+    if fine and numbers["min_mean"] <= numbers["warn_mean"] and numbers["min_p1"] <= numbers["warn_p1"]:
+        for k, v in numbers.items():
+            setattr(out, k, float(v))
+    else:                       # impossible values: back to the defaults, locked
+        out.advanced = out.aim = out.use_minimum = False
     return out
 
 

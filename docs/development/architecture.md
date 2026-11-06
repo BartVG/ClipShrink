@@ -45,10 +45,10 @@ flowchart LR
 | `db.py` | The batch's memory (SQLite). Each state change is on disk before work moves on, which makes resume after a crash possible. |
 | `player.py` | Stage 4: side by side playback. One mpv process decodes both files into a single picture. Uses `tools`. |
 | `trash.py` | Stage 4: optional cleanup. Only originals with a checked conversion, only with confirmation, only to the Recycle Bin. |
-| `reports.py` | Per-batch reports (CSV files), lifetime statistics, and exports. Uses `config`. |
+| `reports.py` | Writes one CSV report per batch. The app never reads them back. Uses `config`. |
 | `tools.py` | Finds the bundled programs (FFmpeg, mpv) and runs them without console windows. Also keeps Windows awake during a batch. |
-| `config.py` | Fixed rules of the tool: version, thresholds, quality settings per encoder, output suffixes, size choices. Not user settings. |
-| `settings.py` | The user's choices, saved in `settings.json`. A damaged file or unknown value falls back to the default. |
+| `config.py` | Fixed rules of the tool: version, thresholds, quality settings per encoder, the quality policy, output suffixes, size choices. Not user settings. |
+| `settings.py` | The user's choices, saved in `settings.json`. A damaged file, unknown value or impossible number falls back to the default. |
 | `cli.py` | Internal headless batch, see below. |
 
 For the reasoning behind these stages, see [How it works](../internals/index.md).

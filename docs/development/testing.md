@@ -32,18 +32,19 @@ Every clip there is converted with every available encoder, and all must pass. W
 | `test_scan.py` | Scan finds every H.264 video in all subfolders (unicode names, `.mov`, `.m4v`, `.mkv`); empty folder |
 | `test_estimate.py` | Savings estimated from real sample encodes predict the result |
 | `test_quality.py` | Conversion quality for each generated clip and each encoder; the real clip; self-guards on the test itself |
-| `test_failures.py` | Below-bar conversions flagged with the original untouched; larger results and encoder failures keep the original; a failure does not stop the batch; no temp files beside originals; H.265 input refused |
+| `test_failures.py` | Below-target conversions flagged with the original untouched; larger results and encoder failures keep the original; a failure does not stop the batch; no temp files beside originals; H.265 input refused |
 | `test_resume.py` | Crash and resume with a real process kill; requeue when output vanished or source changed; pause and resume |
-| `test_delete.py` | Explicit confirmation, Recycle Bin, refusal for unknown, pending, failed or kept files, extra confirmation for below-bar, rename rules |
-| `test_reports.py` | Automatic report per batch, statistics, CSV, XLSX and PDF export, no overwrite, formula-injection safety, deleting a report, damaged report file |
-| `test_interface.py` | Qt interface checks run offscreen: theme, tick boxes, skipped H.265 rows, version in title, sorting, Select All/Recommended, warning sign, About, Statistics and Reports pages, progress bars |
+| `test_delete.py` | Explicit confirmation, Recycle Bin, refusal for unknown, pending, failed or kept files, extra confirmation for below-target, rename rules |
+| `test_reports.py` | Automatic report per batch, reports stay when files are forgotten, no overwrite, formula-injection safety |
+| `test_interface.py` | Qt interface checks run offscreen: theme, tick boxes, skipped H.265 rows, version in title, sorting, Select All/Recommended, warning sign, About, progress bars |
 | `test_player.py` | Side-by-side sync, detail mode, player stopping reported as an error |
 | `test_settings.py` | Settings saved and restored, bad settings file, encoder fallback, Settings page, Encoding column, Resized label |
-| `test_codec_and_size.py` | AV1 on generated clips and the real clip, each encoder; where a resize lands; downscaling keeps tracks and clears the bar against a shrunken copy; never upscales; estimate follows settings; player with different sizes |
+| `test_version_1_6.py` | Quality policy and real conversions with custom values, Advanced section, About, detected card, automatic start, Start Over and forgetting, "Already has a conversion" |
+| `test_codec_and_size.py` | AV1 on generated clips and the real clip, each encoder; where a resize lands; downscaling keeps tracks and meets the target against a shrunken copy; never upscales; estimate follows settings; player with different sizes |
 
 ### Quality checks
 
-`test_quality.py` asserts that each default conversion is H.265, has a VMAF mean of at least 95 and a 1st percentile of at least 90 over every frame, is smaller than the original, and keeps the dates and tracks. The NVENC encoder is only included when `hevc_nvenc` works on the machine. Two self-guards keep the bar honest: one proves a measurement can fail, and one fails if the app's own thresholds drop below 95 and 90.
+`test_quality.py` asserts that each default conversion is H.265, has a VMAF mean of at least 95 and a 1st percentile of at least 90 over every frame, is smaller than the original, and keeps the dates and tracks. The NVENC encoder is only included when `hevc_nvenc` works on the machine. Two self-guards keep the target honest: one proves a measurement can fail, and one fails if the app's own thresholds drop below 95 and 90.
 
 ## Helpers
 

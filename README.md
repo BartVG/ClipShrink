@@ -6,11 +6,11 @@
 
 **Shrink your videos to free up disk space, without visible quality loss, and measure every one to be sure.**
 
-ClipShrink is a Windows app that batch converts H.264 videos to H.265. It works on any H.264 video and takes special care of GoPro files, keeping their telemetry. You can also choose AV1, or shrink big videos to 4K, 1080p or 720p, in Settings. Every conversion is compared with its original, frame by frame. Any that miss the quality bar get a warning sign, so you decide what to keep. If a result isn't smaller, you keep the original and the app tells you.
+ClipShrink is a Windows app that batch converts H.264 videos to H.265. It works on any H.264 video and takes special care of GoPro files, keeping their telemetry. You can also choose AV1, or shrink big videos to 4K, 1080p or 720p, in Settings. Every conversion is compared with its original, frame by frame. Any that miss the quality target get a warning sign, so you decide what to keep. If a result isn't smaller, you keep the original and the app tells you.
 
 ![The Compare and clean up page, listing verified conversions with sizes and quality scores](docs/images/4-compare-and-clean-up.png)
 
-*Screenshots show real GoPro footage. The find, compare and reports pages show one real 34-clip batch, redrawn from its saved results. The saving and convert pages show a run on one clip from it, and the settings page shows the defaults. Folder paths are replaced with a neutral one.*
+*Screenshots show real GoPro footage. The find and compare pages show one real 34-clip batch, redrawn from its saved results. The saving and convert pages show a run on one clip from it, and the settings page shows the defaults. Folder paths are replaced with a neutral one.*
 
 ## Download
 
@@ -29,7 +29,7 @@ On one batch of 34 real 1080p GoPro clips, using an NVIDIA graphics card:
 | Before | 10.41 GB |
 | After | 4.99 GB |
 | Saved | 5.42 GB (52%) |
-| Clips that cleared the bar | 34 of 34 |
+| Clips that met the target | 34 of 34 |
 | Lowest VMAF average | 95.5 (required: 95) |
 | Lowest worst-1% score | 90.3 (required: 90) |
 
@@ -62,12 +62,12 @@ Click any column title to sort. **Select All** and **Select Recommended** tick f
 ### Settings
 The defaults suit most people. If you want, you can choose the graphics card or the processor, H.265 or AV1, and a largest size. Shrinking loses detail for good, so those conversions are labelled Resized, and they're checked against a shrunken copy of the original. You can also show an Encoding column with the format, quality setting, resolution and bitrate.
 
+An Advanced section, locked until you confirm you understand it, lets you set your own VMAF values. See [Advanced settings](https://tophe323.github.io/ClipShrink/user-guide/advanced-settings/).
+
 ![Settings page](docs/images/6-settings.png)
 
-### Reports and statistics
-Every batch keeps its own report automatically. The **Reports & Statistics** page shows the space you've saved since you started using the app and your average file reduction, and lets you export reports as CSV, XLSX or PDF, or delete them.
-
-![Reports and statistics page](docs/images/5-reports-and-statistics.png)
+### Start Over
+Each batch leaves a CSV report in a folder you can open from **About**. When you're finished, exit or click **Start Over**. ClipShrink then forgets those files, so changes you make outside the app can't confuse it. If you scan the folder again, an original with a conversion beside it isn't ticked.
 
 ## What "no quality loss" means here
 
@@ -78,7 +78,7 @@ It scores every frame with [VMAF](https://github.com/Netflix/vmaf), Netflix's op
 - the **average** score is at least **95**
 - the **worst 1% of frames** score at least **90**
 
-If a file misses that bar even at the best setting, ClipShrink still converts it and marks it with a ⚠ warning sign. There's no lower limit, so check those files yourself. Removing their originals needs an extra confirmation.
+If a file misses that target even at the best setting, ClipShrink still converts it and marks it with a ⚠ warning sign. There's no lower limit by default, so check those files yourself. Removing their originals needs an extra confirmation.
 
 That's a measurement, not a mathematical guarantee. Use the side by side player if you want to judge a clip with your own eyes.
 
@@ -117,7 +117,7 @@ setup_dev.bat
 check.bat
 ```
 
-`check.bat` runs the full test suite, about 10 minutes, and needs a real GoPro clip in `tests/real_clip/`. Tests prove the quality bar on every conversion, using their own measurement code rather than the app's. See [CONTRIBUTING.md](CONTRIBUTING.md) and the [history of check runs](docs/test-history.md).
+`check.bat` runs the full test suite, about 10 minutes, and needs a real GoPro clip in `tests/real_clip/`. Tests prove the quality target on every conversion, using their own measurement code rather than the app's. See [CONTRIBUTING.md](CONTRIBUTING.md) and the [history of check runs](docs/test-history.md).
 
 ## Licence
 

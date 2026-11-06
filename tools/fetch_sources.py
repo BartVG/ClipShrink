@@ -21,7 +21,7 @@ LICENSE_DIRS = {"licenses", "licences", "license", "licence"}
 # Script folders for things this FFmpeg build turns off (--disable-libfdk-aac, --disable-whisper,
 # --disable-libpulse, --disable-libxcb, --disable-xlib), so they are not in the binary.
 FFMPEG_NOT_IN_BUILD = ("fdk-aac", "whisper", "pulseaudio", "45-x11")
-PYTHON_PACKAGES_IN_APP = {"openpyxl", "et_xmlfile", "pyinstaller", "pyside6_essentials", "shiboken6"}
+PYTHON_PACKAGES_IN_APP = {"pyinstaller", "pyside6_essentials", "shiboken6"}
 # Projects that keep their licence somewhere other than the usual place.
 LICENSE_ELSEWHERE = {"distrib/docs/english/source/avisynthdoc/license.rst", "include/ffnvcodec/nvEncodeAPI.h"}
 SVN_ROOTS = ("https://svn.code.sf.net/p/lame/svn", "https://svn.xvid.org")

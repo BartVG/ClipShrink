@@ -50,11 +50,9 @@ def dark_review(workspace, qapp_instance):
     from clipshrink.ui import MainWindow, apply_theme
     qapp_instance.styleHints().setColorScheme(Qt.ColorScheme.Dark)
     apply_theme(qapp_instance)
+    w = MainWindow(db_path=workspace / "work" / "s.db", work_dir=workspace / "work" / "t")
     _verified_row(workspace, "one")
     _verified_row(workspace, "two")
-    w = MainWindow(db_path=workspace / "work" / "s.db", work_dir=workspace / "work" / "t")
-    from clipshrink import db
-    w.add_to_session(r.source for r in db.read_records(workspace / "work" / "s.db"))
     w.resize(1100, 700)
     w.show()
     w.go(3)
@@ -201,7 +199,7 @@ def test_ticks_stay_on_the_right_files_with_skipped_rows_present(dark_review, wo
 def test_version_is_one_place_and_shown(window):
     from pathlib import Path
     from clipshrink import config
-    assert config.VERSION == "1.5.1"
+    assert config.VERSION == "1.6"
     assert config.VERSION in window.windowTitle()
     iss = (Path(__file__).resolve().parents[1] / "installer" / "clipshrink.iss").read_text(encoding="utf-8")
     assert f"AppVersion={config.VERSION}" in iss
@@ -234,6 +232,7 @@ def _review_with(workspace, qapp_instance, rows):
     from clipshrink import db
     from clipshrink.ui import MainWindow
     dbp = workspace / "work" / "s.db"
+    w = MainWindow(db_path=dbp, work_dir=workspace / "work" / "t")
     for name, folder, before, after, mean, p1, status in rows:
         d = workspace / "videos" / folder
         d.mkdir(parents=True, exist_ok=True)
@@ -244,8 +243,6 @@ def _review_with(workspace, qapp_instance, rows):
         db.save(dbp, db.Record(source=str(a), status=status, source_size=sa.st_size, source_mtime_ns=sa.st_mtime_ns,
                                output=str(b), output_size=sb.st_size, output_mtime_ns=sb.st_mtime_ns,
                                vmaf_mean=mean, vmaf_p1=p1, reason="VMAF below the bar" if status == "below_bar" else ""))
-    w = MainWindow(db_path=dbp, work_dir=workspace / "work" / "t")
-    w.add_to_session(r.source for r in db.read_records(dbp))
     w.resize(1200, 760)
     w.show()
     w.go(3)
@@ -314,7 +311,7 @@ def test_ticks_and_play_follow_the_file_after_sorting(workspace, qapp_instance):
 
 
 def test_every_table_has_sortable_columns(window):
-    for t in (window.scan_table, window.est_table, window.conv_table, window.review, window.reports_table):
+    for t in (window.scan_table, window.est_table, window.conv_table, window.review):
         assert t.isSortingEnabled()
 
 
@@ -406,51 +403,12 @@ def test_no_google_drive_storage_warning_anywhere_in_the_window(workspace, qapp_
 
 
 # --- Sidebar: About, and Reports & Statistics
-def test_sidebar_order_about_reports_then_quality_help(window):
-    names = window.sidebar_buttons()
-    assert names[:3] == ["Settings", "About", "Reports & Statistics"]
-    assert window.reports_btn.text() == "Reports && Statistics", "a single & would show as an underscore"
-    assert "quality" in names[3].lower()
-
-
 def test_about_page_says_what_this_is(window):
     window.about_btn.click()
     t = window.about_text().replace("\n", " ")
     assert window.stack.currentWidget() is window.about_page
-    assert "ClipShrink" in t and "1.5" in t and "GPL" in t and "github.com/tophe323/ClipShrink" in t
+    assert "ClipShrink" in t and "1.6" in t and "GPL" in t and "github.com/tophe323/ClipShrink" in t
     assert "FFmpeg" in t and "mpv" in t
-
-
-def test_statistics_page_shows_totals_and_returns_to_where_you_were(workspace, qapp_instance):
-    w = _review_with(workspace, qapp_instance, ROWS)
-    w.reports_btn.click()
-    assert w.stack.currentWidget() is w.reports_page
-    t = " ".join(w.statistics_lines())
-    assert "10.6 KB" in t, t         # 18,700 before, 8,100 after = 10,600 bytes saved
-    w.reports_back.click()
-    assert w.stack.currentIndex() == 3
-    w.close()
-
-
-def test_reports_page_lists_exports_and_deletes(workspace, qapp_instance):
-    from clipshrink.reports import reports_dir, write_batch_report
-    from clipshrink import db
-    from test_delete import purge_own_test_files, recycle_bin_has
-    w = _review_with(workspace, qapp_instance, ROWS)
-    dbp = workspace / "work" / "s.db"
-    rep = write_batch_report(reports_dir(dbp), db.read_records(dbp))
-    w.reports_btn.click()
-    t = w.reports_table
-    assert t.rowCount() == 1
-    assert not w.export_csv_btn.isEnabled() and not w.delete_reports_btn.isEnabled()
-    w._report_cell_clicked(0, 0)
-    assert w.export_csv_btn.isEnabled() and w.export_xlsx_btn.isEnabled() and w.export_pdf_btn.isEnabled()
-    made = w.export_ticked("xlsx", workspace / "exports")
-    assert made[0].suffix == ".xlsx" and made[0].exists()
-    assert w.delete_ticked_reports(confirmed=True) == [rep] and not rep.exists()
-    purge_own_test_files(recycle_bin_has(rep.name))
-    assert t.rowCount() == 0
-    w.close()
 
 
 # --- Progress bars while deleting and renaming
@@ -588,23 +546,3 @@ def test_sidebar_ticks_finished_steps(window):
     assert not any(not c.isHidden() for c in window.step_checks)
 
 
-def test_start_button_gives_way_to_pause_and_comes_back(dark_review, workspace, qapp_instance, get_clip):
-    import time
-    from conftest import copy_preserving
-    from clipshrink.estimate import Estimate
-    w = dark_review
-    src = copy_preserving(get_clip("no_audio_no_telemetry"), workspace / "videos" / "real.mp4")
-    assert w.pause_btn.isHidden()
-    w.start_batch([str(src)])
-    assert w.start_btn.isHidden() and not w.pause_btn.isHidden()
-    end = time.time() + 120
-    while w.busy and time.time() < end:
-        qapp_instance.processEvents()
-        time.sleep(0.01)
-    qapp_instance.processEvents()
-    assert not w.busy
-    assert w.conv_cards["Files Processed"].text() == "1 / 1"
-    assert w.conv_cards["Time Remaining"].text() == "Done"
-    assert "(-" in w.conv_cards["Space Saved"].text()
-    w._estimate_done(Estimate(10, 5, 4, 6, 60.0, "x265", [], 1))
-    assert not w.start_btn.isHidden() and w.pause_btn.isHidden()

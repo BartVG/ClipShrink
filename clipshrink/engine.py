@@ -60,15 +60,28 @@ class Verdict(Exception):
         self.reason, self.score, self.retry_stricter = reason, score, retry_stricter
 
 
+def forget_everything(db_path, work_dir):
+    """Drops all file status and any half-finished work. Originals, conversions and reports stay."""
+    for r in db.read_records(db_path):
+        if r.status == "encoding":
+            for part in _part_files(r.source):
+                part.unlink(missing_ok=True)
+    db.clear(db_path)
+    if Path(work_dir).exists():
+        for d in Path(work_dir).glob("job_*"):
+            shutil.rmtree(d, ignore_errors=True)
+
+
 class Converter:
     def __init__(self, db_path, work_dir, encoder="auto", ladder=None, on_event=None, only=None, codec="h265",
-                 max_resolution="original"):
+                 max_resolution="original", quality=config.DEFAULT_QUALITY):
         self.db_path = Path(db_path)
         self.work_dir = Path(work_dir)
         self.codec = codec
         self.max_resolution = max_resolution
         self.encoder = encode.resolve_encoder(encoder, codec)
-        self.ladder = list(ladder) if ladder else list(config.LADDERS[self.encoder])
+        self.quality = quality
+        self.ladder = list(ladder) if ladder else config.ladder_for(self.encoder, quality)
         self.on_event = on_event or (lambda ev: None)
         self.gate = encode.Gate()
         self._scope = {}
@@ -100,8 +113,6 @@ class Converter:
                                  or (rec.status in ("verified", "below_bar") and output_intact(rec)))
                 if keep:
                     self._scope[p] = True
-                    continue
-                if rec.status == "original_deleted":
                     continue
             db.save(self.db_path, db.Record(source=p, source_size=st.st_size, source_mtime_ns=st.st_mtime_ns))
             self._scope[p] = True
@@ -231,7 +242,8 @@ class Converter:
             progress(WEIGHTS["search"] * min(1.0, done_steps[0] / steps), "search")
 
         found = encode.search_quality(segments, self.encoder, self.ladder, info, work,
-                                      guess=self._hints.get(info.group), gate=gate, on_step=on_step, target=target)
+                                      guess=self._hints.get(info.group), gate=gate, on_step=on_step, target=target,
+                                      bar=self.quality.search_bar())
         self._hints[info.group] = found.index
         for at, seg in segments:
             if Path(seg).parent == work:
@@ -266,16 +278,16 @@ class Converter:
                     kept = work / f"best{built.suffix}"
                     os.replace(built, kept)
                     video.unlink(missing_ok=True)
-                    best = (kept, v.score, v.reason)
+                    best = (kept, v.score)
                     continue
                 if best:        # a stricter try grew or didn't match: settle for the best one
                     break
                 raise
-            self._deliver(rec, built, info, score, tmp_src_stat, gate)
+            self._finish(rec, built, info, score, tmp_src_stat, gate)
             progress(1.0, "done")
             return
         if best:
-            self._deliver(rec, best[0], info, best[1], tmp_src_stat, gate, "below_bar", best[2])
+            self._finish(rec, best[0], info, best[1], tmp_src_stat, gate)
             progress(1.0, "done")
 
     def _build(self, src, video, built, gate, resized=False):
@@ -320,11 +332,8 @@ class Converter:
         score = encode.measure_vmaf(built, src, info, work, gate, on_time, target)
         if score.frames != nf_a:
             raise Verdict(f"VMAF compared {score.frames} frames out of {nf_a}, original kept.")
-        if not score.passes():
-            raise Verdict(f"VMAF below the recommended bar: average {score.mean:.1f} (recommended "
-                          f"{config.VMAF_MEAN_MIN:.0f}), worst 1% {score.p1:.1f} (recommended "
-                          f"{config.VMAF_P1_MIN:.0f}). Compare it before removing the original.",
-                          score, retry_stricter=True)
+        if not score.passes(bar=self.quality.search_bar()):
+            raise Verdict("VMAF short of what the search aims for.", score, retry_stricter=True)
         return score
 
     @staticmethod
@@ -332,6 +341,19 @@ class Converter:
         r = tools.run([tools.ffprobe(), "-v", "error", "-select_streams", "v:0", "-count_packets",
                        "-show_entries", "stream=nb_read_packets", "-of", "csv=p=0", str(path)])
         return int(r.stdout.strip().split(",")[0]) if r.returncode == 0 and r.stdout.strip() else -1
+
+    def _finish(self, rec, built, info, score, src_stat, gate):
+        """The search is over: apply the warning values and the minimum to the result."""
+        q = self.quality
+        if not q.keeps(score.mean, score.p1):
+            raise Verdict(f"VMAF below your minimum: average {score.mean:.1f} (minimum {q.min_mean:g}), worst 1% "
+                          f"{score.p1:.1f} (minimum {q.min_p1:g}). Nothing was kept, and your original is untouched.", score)
+        if q.meets_warning(score.mean, score.p1):
+            self._deliver(rec, built, info, score, src_stat, gate)
+        else:
+            self._deliver(rec, built, info, score, src_stat, gate, "below_bar",
+                          f"VMAF below the target: average {score.mean:.1f} (target {q.warn_mean:g}), worst 1% "
+                          f"{score.p1:.1f} (target {q.warn_p1:g}). Compare it before removing the original.")
 
     def _deliver(self, rec, built, info, score, src_stat, gate, status="verified", reason=""):
         """Moves the verified file beside the original. Originals are not touched."""
@@ -358,6 +380,7 @@ class Converter:
         final = os.stat(dest)
         made = scan.probe_file(dest)
         rec.codec = self.codec
+        rec.target_mean, rec.target_p1 = self.quality.warn_mean, self.quality.warn_p1
         rec.source_width, rec.source_height = info.width, info.height
         rec.output_width, rec.output_height = made.width, made.height
         rec.duration = made.duration

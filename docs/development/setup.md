@@ -19,7 +19,7 @@ The script runs these steps and stops at the first one that fails:
 
 1. Creates `.venv` with `py -3.12 -m venv .venv`, only if `.venv\Scripts\python.exe` does not exist yet.
 2. Upgrades pip.
-3. Installs `requirements.txt` (pinned: PyInstaller, PySide6, pytest, openpyxl).
+3. Installs `requirements.txt` (pinned: PyInstaller, PySide6, pytest).
 4. Runs `tools\fetch_vendor.py`, which downloads FFmpeg and mpv into `vendor/` (see [Building](building.md#vendor-tools)).
 
 When it finishes it prints a reminder to add a GoPro clip to `tests\real_clip\` before running `check.bat`. See [Testing](testing.md#the-real-clip).

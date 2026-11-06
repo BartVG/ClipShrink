@@ -29,7 +29,7 @@ def click(widget):
 
 
 # --- Leaving a side page by clicking the current step
-@pytest.mark.parametrize("button", ["settings_btn", "about_btn", "reports_btn", "why_btn"])
+@pytest.mark.parametrize("button", ["settings_btn", "about_btn"])
 @pytest.mark.parametrize("stage", [0, 3])
 def test_current_step_leaves_a_side_page(window, button, stage):
     window.go(stage)
@@ -46,16 +46,6 @@ def test_other_steps_do_not_jump(window):
     click(window.steps[0])
     click(window.steps[3])
     assert window.stack.currentIndex() == about and window.stage == 2
-
-
-def test_quality_explanation_is_a_page(window):
-    from PySide6.QtWidgets import QPushButton, QTextBrowser
-    window.why_btn.click()
-    assert window.stack.currentWidget() is window.quality_page
-    assert window.quality_explanation() in window.quality_page.findChild(QTextBrowser).toPlainText()
-    back = [b for b in window.quality_page.findChildren(QPushButton) if "Back" in b.text()][0]
-    back.click()
-    assert window.stack.currentIndex() == window.stage
 
 
 # --- The player starts by itself, and space pauses it
@@ -221,68 +211,6 @@ def test_no_prompt_without_a_paired_lrv(window, get_clip, workspace, monkeypatch
     assert wait_for(lambda: window.result is not None, 30000)
     QTest.qWait(200)
     assert asked == []
-
-
-# --- Compare and clean up lists this session's videos only
-def saved_record(workspace, name):
-    import os
-    a, b = workspace / "videos" / name, workspace / "videos" / f"{Path(name).stem}_(h265).mp4"
-    a.write_bytes(b"x" * 1000)
-    b.write_bytes(b"y" * 500)
-    sa, sb = os.stat(a), os.stat(b)
-    db.save(workspace / "work" / "s.db", db.Record(
-        source=str(a), status="verified", source_size=sa.st_size, source_mtime_ns=sa.st_mtime_ns, output=str(b),
-        output_size=sb.st_size, output_mtime_ns=sb.st_mtime_ns, vmaf_mean=97.0, vmaf_p1=93.0))
-    return a
-
-
-def review_names(window):
-    window.go(3)
-    return {window.review.item(r, 1).text() for r in range(window.review.rowCount())}
-
-
-def test_compare_starts_empty_and_hides_earlier_sessions(window, workspace):
-    saved_record(workspace, "old.mp4")
-    assert review_names(window) == set()
-    assert window.savings_lab.text() == ""
-    assert "No conversions from this session" in window.problems.toPlainText()
-
-
-def test_compare_lists_only_what_this_session_added(window, workspace):
-    saved_record(workspace, "old.mp4")
-    new = saved_record(workspace, "new.mp4")
-    window.add_to_session([str(new).upper()])
-    assert review_names(window) == {"new.mp4"}
-
-
-def test_scan_brings_its_files_into_the_session(window, get_clip, workspace):
-    src = copy_preserving(get_clip("no_audio_no_telemetry"), workspace / "videos" / "found.mp4")
-    st = src.stat()
-    db.save(workspace / "work" / "s.db", db.Record(source=str(src), status="verified", source_size=st.st_size,
-                                                   source_mtime_ns=st.st_mtime_ns, output="x", vmaf_mean=97.0, vmaf_p1=93.0))
-    saved_record(workspace, "old.mp4")
-    (workspace / "videos" / "old.mp4").rename(workspace / "elsewhere.bin")
-    window.start_scan(workspace / "videos")
-    assert wait_for(lambda: window.result is not None, 30000)
-    assert review_names(window) == {"found.mp4"}
-
-
-def test_rename_only_touches_this_session(window, workspace, monkeypatch):
-    from PySide6.QtWidgets import QMessageBox
-    old, new = saved_record(workspace, "old.mp4"), saved_record(workspace, "new.mp4")
-    dbp = workspace / "work" / "s.db"
-    for p in (old, new):
-        r = db.get(dbp, str(p))
-        r.status = "original_deleted"
-        db.save(dbp, r)
-        p.unlink()
-    window.add_to_session([str(new)])
-    window.go(3)
-    assert window.rename_btn.text() == "Remove the added tags from 1 name…"
-    asked = []
-    monkeypatch.setattr(QMessageBox, "question", lambda s, t, text, *a: (asked.append(text), QMessageBox.No)[1])
-    window.rename_btn.click()
-    assert asked and "1 conversion " in asked[0]
 
 
 # --- Output names

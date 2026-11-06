@@ -1,16 +1,20 @@
 """Fixed rules of the tool. These numbers are the promise made to the user."""
+from dataclasses import dataclass
+
 APP_NAME = "ClipShrink"
-VERSION = "1.5.1"
+VERSION = "1.6"
 PROJECT_URL = "https://github.com/tophe323/ClipShrink"
+DOCS_URL = "https://tophe323.github.io/ClipShrink/"
+ADVANCED_DOCS_URL = DOCS_URL + "user-guide/advanced-settings/"
 VMAF_MEAN_MIN = 95.0     # average score over every frame
 VMAF_P1_MIN = 90.0       # the worst 1% of frames must still reach this
-SAMPLE_MARGIN = 0.5      # test encodes must clear the bar by this much
+SAMPLE_MARGIN = 0.5      # test encodes must clear the target by this much
 
 STATUS_TEXT = {
     "pending": "Waiting",
     "encoding": "Working…",
     "verified": "Verified",
-    "below_bar": "⚠ Below the bar",
+    "below_bar": "⚠ Below target",
     "resized": "Resized",
     "kept_original": "Original kept",
     "failed": "Failed, original kept",
@@ -20,14 +24,18 @@ STATUS_TEXT = {
 
 
 def status_text(rec):
-    """The words shown for a record. A smaller copy never claims to be plain "Verified"."""
-    if rec.status == "verified" and rec.resized:
-        return STATUS_TEXT["resized"]
+    """The words shown for a record. A smaller copy never claims to be plain "Verified",
+    and neither does a file judged by anything other than the default values."""
+    if rec.status == "verified":
+        word = STATUS_TEXT["resized"] if rec.resized else STATUS_TEXT["verified"]
+        if rec.target_mean and (rec.target_mean, rec.target_p1) != (VMAF_MEAN_MIN, VMAF_P1_MIN):
+            return f"{word} at {rec.target_mean:g} / {rec.target_p1:g}"
+        return word
     return STATUS_TEXT.get(rec.status, rec.status)
 
 
 def is_recommended(mean, p1):
-    """Clears the bar. Anything else is still converted, but carries a warning."""
+    """Meets the default target of 95 and 90."""
     return mean is not None and p1 is not None and mean >= VMAF_MEAN_MIN and p1 >= VMAF_P1_MIN
 
 
@@ -38,6 +46,38 @@ LADDERS = {
     "svtav1": [42, 38, 36, 34, 32, 30, 26, 22, 18],
     "av1_nvenc": [44, 42, 40, 38, 36, 34, 32, 28, 24],
 }
+# Only used when the user asks the app to aim for their own values.
+LOOSER = {"x265": [40, 36, 32, 30, 28], "nvenc": [50, 46, 43, 40, 37], "svtav1": [60, 56, 52, 48, 45],
+          "av1_nvenc": [60, 56, 52, 49, 46]}
+STRICTER = {"x265": [12, 10], "nvenc": [20, 18], "svtav1": [14, 10], "av1_nvenc": [20, 16]}
+
+
+@dataclass(frozen=True)
+class QualityPolicy:
+    """When a file gets a warning, what the search aims for, and when nothing is kept."""
+    warn_mean: float = VMAF_MEAN_MIN
+    warn_p1: float = VMAF_P1_MIN
+    aim: bool = False
+    min_mean: float = None
+    min_p1: float = None
+
+    def search_bar(self):
+        return (self.warn_mean, self.warn_p1) if self.aim else (VMAF_MEAN_MIN, VMAF_P1_MIN)
+
+    def meets_warning(self, mean, p1):
+        return mean >= self.warn_mean and p1 >= self.warn_p1
+
+    def keeps(self, mean, p1):
+        return self.min_mean is None or (mean >= self.min_mean and p1 >= self.min_p1)
+
+
+DEFAULT_QUALITY = QualityPolicy()
+
+
+def ladder_for(encoder, quality=DEFAULT_QUALITY):
+    return (LOOSER[encoder] + LADDERS[encoder] + STRICTER[encoder]) if quality.aim else list(LADDERS[encoder])
+
+
 CODEC_NAMES = {"h265": "H.265", "av1": "AV1"}
 CODEC_SUFFIX = {"h265": "_(h265)", "av1": "_(av1)"}
 SIZE_SUFFIX = {"4k": "_(4k)", "1080p": "_(1080p)", "720p": "_(720p)"}
@@ -71,19 +111,18 @@ GRAFT_EXTS = {".mp4", ".mov", ".m4v", ".lrv"}
 SKIP_DIRS = {"$recycle.bin", "system volume information", ".tmp.drivedownload", ".tmp.driveupload"}
 
 QUALITY_EXPLANATION = (
-    "What \"no quality loss\" means here\n\n"
-    "Truly lossless H.265, where every pixel stays identical, usually makes files larger than your "
-    "the originals, so it would cost you space instead of saving it. This tool uses a measured "
-    "definition instead.\n\n"
+    "Truly lossless H.265, where every pixel stays identical, usually makes files larger than the originals, "
+    "so it would cost you space instead of saving it. This tool uses a measured definition instead.\n\n"
     "After each conversion it compares every frame with the original using VMAF, an open measure "
     "from Netflix of how a video looks to people, scored from 0 to 100. A conversion counts "
     f"as recommended if the average score is at least {VMAF_MEAN_MIN:.0f} and the worst 1% of frames score at least "
-    f"{VMAF_P1_MIN:.0f}, a level where differences are very hard to see.\n\n"
-    "If a file misses that bar even at the best setting, it is still converted, and it gets a warning "
+    f"{VMAF_P1_MIN:.0f}, a level where differences are very hard to see. This is the quality target.\n\n"
+    "If a file misses the target even at the best setting, it is still converted, and it gets a warning "
     "sign so you can decide for yourself. Use Select Recommended to leave those files out when cleaning up. "
-    "If the result is not smaller, your original is simply kept and the file is listed in the report. Sound, any GoPro telemetry and capture dates are copied "
-    "unchanged, and originals are never touched during conversion.\n\n"
+    "If the result is not smaller, your original is simply kept and the file is listed in the report. Sound, any "
+    "GoPro telemetry and capture dates are copied unchanged, and originals are never touched during conversion.\n\n"
     "If you choose a smaller resolution in Settings, the conversion is compared with a smaller copy of the original "
     "at the same size. So the score shows how clean the encoding is, not the detail lost by shrinking, and those "
-    "files are labelled Resized rather than Verified."
+    "files are labelled Resized rather than Verified.\n\n"
+    "The advanced part of Settings can change these numbers. Files judged by other numbers show them in their label."
 )

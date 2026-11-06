@@ -25,7 +25,7 @@ Every section folder has an `index.md` that opens the section. Start each page w
 Link to other pages with relative `.md` links. Link to code, tests and other repository files with absolute GitHub URLs, because a relative link to a file outside `docs/` (such as `../clipshrink/ui.py`) points outside the site. A broken relative link fails `mkdocs build --strict`, locally and in CI.
 
 ```markdown
-See [Quality](../internals/quality.md) for the bar.
+See [Quality](../internals/quality.md) for the target.
 The check is in [check.py](https://github.com/tophe323/ClipShrink/blob/main/check.py).
 ```
 

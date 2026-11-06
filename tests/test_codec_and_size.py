@@ -220,10 +220,10 @@ def test_side_by_side_works_when_sizes_differ_and_stays_in_sync(get_clip, worksp
 
 def test_report_lists_codec_resolution_and_bitrate(get_clip, workspace):
     import csv
-    from clipshrink.reports import list_reports, reports_dir
+    from clipshrink.reports import reports_dir
     src = copy_preserving(get_clip("uhd_4k_telemetry"), workspace / "videos" / "a.mp4")
     convert(src, workspace, "x265", "h265", "1080p")
-    rep = list_reports(reports_dir(workspace / "work" / "state.db"))[0].path
+    rep = next(reports_dir(workspace / "work" / "state.db").glob("*.csv"))
     with open(rep, newline="", encoding="utf-8-sig") as f:
         row = next(csv.DictReader(f))
     assert row["Codec"] == "H.265" and row["Output resolution"] == "1920x1080" and float(row["Output bitrate (Mbit/s)"]) > 0

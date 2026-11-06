@@ -133,7 +133,7 @@ def test_licence_texts_the_installer_must_carry_are_present():
     assert (licenses / "COMPONENTS.md").exists()
     assert list(licenses.glob("qt/pyside-setup-*/LGPL-3.0-only*"))
     assert (licenses / "python" / "python" / "LICENSE.txt").exists()
-    assert (licenses / "python" / "openpyxl").is_dir()
+    assert not (licenses / "python" / "openpyxl").exists(), "no longer bundled"
     for name in ("x265", "SVT-AV1", "vmaf", "x264"):
         assert any(licenses.glob(f"ffmpeg/{name}/*")), name
     assert any(licenses.glob("mpv/mpv/*"))

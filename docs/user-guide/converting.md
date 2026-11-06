@@ -6,19 +6,19 @@ Step 3 converts your videos one at a time, measures each one against its origina
 
 ## Start, pause, resume, stop
 
-- **Start converting** begins the batch. The line above the button shows how many videos, their total size, and the expected time. While it runs, your computer will not go to sleep.
+- **Start converting**, on the See the saving page, opens this page and begins the batch by itself. Coming back to this page later never restarts anything. The line near the top shows how many videos, their total size, and the expected time. While it runs, your computer will not go to sleep.
 - **Pause** holds the work; the button becomes **Resume**. Pausing is not saved to disk, so it only lasts while the app stays open.
 - **Stop**: there is no stop button. Closing the window while converting asks "Stop converting?" The file in progress is restarted next time, and finished files are kept.
 
-Two progress bars show all files and the current file with its stage: "Finding the right quality", "Encoding", "Measuring every frame", then "Done". The table lists File, Folder, State, Before, After, VMAF average and Worst 1% for each video. When the batch ends, a line such as "Finished: 8 verified, ⚠ 1 below the bar" appears, and **Next: compare and clean up →** unlocks.
+Two progress bars show all files and the current file with its stage: "Finding the right quality", "Encoding", "Measuring every frame", then "Done". The table lists File, Folder, State, Before, After, VMAF average and Worst 1% for each video. When the batch ends, a line such as "Finished: 8 verified, ⚠ 1 below target" appears, and **Next: compare and clean up →** unlocks.
 
 Videos are converted one at a time, never in parallel. A file that fails or is kept as original does not stop the rest of the batch.
 
 ## If your PC crashes
 
-Reopen ClipShrink. It asks "Continue where you left off?" with the number of unfinished videos. Choose Yes to carry on; finished files are not redone. The file that was in progress starts again from the beginning. If you decline, the unfinished videos are offered again the next time you open the app.
+Reopen ClipShrink. It asks "Continue where you left off?" with the number of unfinished videos. Choose Yes to carry on; finished files are not redone. The file that was in progress starts again from the beginning. If you decline, ClipShrink forgets that batch. Its finished conversions stay on disk, and the next scan marks their originals "Already has a conversion".
 
-Files that were already kept as original or failed are not retried on resume. How this works is described in [How resuming works](../internals/resume.md).
+Files that were already kept as original or failed in that batch are not retried on resume. How this works is described in [How resuming works](../internals/resume.md).
 
 ## Where the results go
 
@@ -42,7 +42,7 @@ The **Encode with** setting decides whether your NVIDIA graphics card (fast) or 
 
 ## What can go wrong
 
-For every file ClipShrink checks that the result is smaller, matches the original, and meets the quality bar. If not, the original is kept or the result is flagged with a warning. [Warnings](warnings.md) explains each case, and [How quality is checked](../internals/quality.md) explains why.
+For every file ClipShrink checks that the result is smaller, matches the original, and meets the quality target. If not, the original is kept or the result is flagged with a warning. [Warnings](warnings.md) explains each case, and [How quality is checked](../internals/quality.md) explains why.
 
 ## Next steps
 

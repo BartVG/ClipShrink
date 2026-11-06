@@ -17,10 +17,9 @@ The ClipShrink installer bundles these programs.
 | [mpv](https://mpv.io), build from [shinchiro/mpv-winbuild-cmake](https://github.com/shinchiro/mpv-winbuild-cmake) | Side by side playback | GPL 2 or later | [mpv source](https://github.com/mpv-player/mpv), [build scripts](https://github.com/shinchiro/mpv-winbuild-cmake) |
 | [Qt 6 / PySide6](https://www.qt.io/qt-for-python) | The window and buttons | LGPL 3 | [PySide source](https://code.qt.io/cgit/pyside/pyside-setup.git/) |
 | [Python](https://www.python.org) | Runs the app | PSF | [Python source](https://www.python.org/downloads/source/) |
-| [openpyxl](https://openpyxl.readthedocs.io) | Excel report export | MIT | [openpyxl source](https://foss.heptapod.net/openpyxl/openpyxl) |
 | [PyInstaller](https://pyinstaller.org) | Packages the app | GPL 2 with bootloader exception | [PyInstaller source](https://github.com/pyinstaller/pyinstaller) |
 
-### Exact versions in release 1.5.1
+### Exact versions in release 1.6
 
 - FFmpeg `n8.1.3-34-ga35157abb9-20261105`
 - mpv `v0.42.0-1-g3138fc8ee`, built 2026-11-05

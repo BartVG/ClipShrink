@@ -102,6 +102,24 @@ def encoder_available(name):
     return _TESTED[name]
 
 
+_GPU_NAME = {}
+
+
+def gpu_name():
+    """The NVIDIA card's name from its driver tool, or None. For display only:
+    whether the card can really encode is decided by encoder_available."""
+    if "name" not in _GPU_NAME:
+        name = None
+        try:
+            r = tools.run(["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"], timeout=10)
+            if r.returncode == 0 and r.stdout.strip():
+                name = r.stdout.strip().splitlines()[0].strip()
+        except (OSError, subprocess.SubprocessError):
+            pass
+        _GPU_NAME["name"] = name
+    return _GPU_NAME["name"]
+
+
 def resolve_encoder(name, codec="h265"):
     """gpu and auto use the NVIDIA card if it works, otherwise the processor."""
     card, processor = ("av1_nvenc", "svtav1") if codec == "av1" else ("nvenc", "x265")
@@ -164,8 +182,8 @@ class Score:
     p1: float
     frames: int
 
-    def passes(self, margin=0.0):
-        return self.mean >= config.VMAF_MEAN_MIN + margin and self.p1 >= config.VMAF_P1_MIN + margin
+    def passes(self, margin=0.0, bar=(config.VMAF_MEAN_MIN, config.VMAF_P1_MIN)):
+        return self.mean >= bar[0] + margin and self.p1 >= bar[1] + margin
 
 
 def measure_vmaf(distorted, reference, info, work_dir, gate=None, on_time=None, target=None):
@@ -229,8 +247,9 @@ class SearchResult:
     rows: dict = field(default_factory=dict)  # ladder index -> [SampleRow]
 
 
-def search_quality(segments, encoder, ladder, info, work_dir, guess=None, gate=None, on_step=None, target=None):
-    """Finds the loosest setting (smallest file) whose samples clear the bar.
+def search_quality(segments, encoder, ladder, info, work_dir, guess=None, gate=None, on_step=None, target=None,
+                   bar=(config.VMAF_MEAN_MIN, config.VMAF_P1_MIN)):
+    """Finds the loosest setting (smallest file) whose samples clear the given values.
     Falls back to the strictest setting, passed=False, if none clears it."""
     res = SearchResult(index=len(ladder) - 1, passed=False)
 
@@ -246,7 +265,7 @@ def search_quality(segments, encoder, ladder, info, work_dir, guess=None, gate=N
             s = measure_vmaf(out, seg, info, work_dir, gate, target=target)
             rows.append(SampleRow(at, Path(seg), out.stat().st_size, s, t1 - t0, time.time() - t1))
             out.unlink()
-            ok = ok and s.passes(config.SAMPLE_MARGIN)
+            ok = ok and s.passes(config.SAMPLE_MARGIN, bar)
         res.rows[i] = rows
         if on_step:
             on_step(i)

@@ -1,6 +1,6 @@
 # History of check runs
 
-Every completed full run while building versions 1.1 to 1.5. A "full run" is one execution of `check.bat` (or `python check.py`), which runs the whole test suite and passes only if every test passes; a skipped test counts as a failure. Each run appends a row to `docs/check_history.md`. Your own runs are logged there, and that file stays on your PC.
+Every completed full run while building versions 1.1 to 1.6 A "full run" is one execution of `check.bat` (or `python check.py`), which runs the whole test suite and passes only if every test passes; a skipped test counts as a failure. Each run appends a row to `docs/check_history.md`. Your own runs are logged there, and that file stays on your PC.
 
 For how the tests are organized and how to run them, see [Testing](development/testing.md).
 
@@ -19,3 +19,4 @@ For how the tests are organized and how to run them, see [Testing](development/t
 | 2026-11-06 13:02 | 27.6 min | 161 | 161 | 0 | 0 | PASS | version 1.4: settings, AV1, downscaling, encoding column, new look |
 | 2026-11-06 14:03 | 22.5 min | 163 | 163 | 0 | 0 | PASS | 1.4 fix: several openers of the database no longer clash |
 | 2026-11-06 17:48 | 17.3 min | 213 | 213 | 0 | 0 | PASS | version 1.5: full MOV sound, LRV clean-up, new names, session-only compare, player autostart |
+| 2026-11-06 20:15 | 32.4 min | 268 | 268 | 0 | 0 | PASS | version 1.6: advanced values, About, detected card, auto start, Start Over |

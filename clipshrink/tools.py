@@ -12,6 +12,11 @@ def _base():
     return Path(__file__).resolve().parents[1] / "vendor"
 
 
+def icon_path():
+    root = Path(sys._MEIPASS) if getattr(sys, "frozen", False) else Path(__file__).resolve().parents[1]
+    return str(root / "assets" / "clipshrink.ico")
+
+
 def ffmpeg():
     return str(_base() / "ffmpeg" / "bin" / "ffmpeg.exe")
 

@@ -4,7 +4,7 @@ After a batch finishes, step 4 lets you check each conversion against its origin
 
 ![The Compare and clean up page, listing verified conversions with sizes and quality scores](../images/4-compare-and-clean-up.png)
 
-The list shows the videos from this session, meaning those found on Find videos or converted since you opened the app. Earlier conversions stay in [Reports & Statistics](reports.md), and you can bring one back by choosing its folder again on Find videos. The columns are: **Delete?**, **Original**, **Folder**, **Before**, **After**, **% Saved**, **VMAF average**, **Worst 1%** and **Result**, plus **Encoding** if you turned it on in [Settings](settings-and-data.md#encoding-column). Click a column title to sort. A big label above the list tells you how much space can be saved once the originals are removed.
+The list shows the videos from the batch you just ran. The columns are: **Delete?**, **Original**, **Folder**, **Before**, **After**, **% Saved**, **VMAF average**, **Worst 1%** and **Result**, plus **Encoding** if you turned it on in [Settings](settings-and-data.md#encoding-column). Click a column title to sort. A big label above the list tells you how much space can be saved once the originals are removed.
 
 A "Needs your attention" box lists every file that was kept as the original, failed, or got a warning sign, with the reason. If all went well it says "Every conversion passed." [Warnings and messages](warnings.md) explains each result.
 
@@ -23,15 +23,15 @@ You can only compare a file whose conversion is verified or has a warning sign, 
 
 ## Choose what to delete
 
-Only files that can be safely removed get a tick box: those with the result "Verified", "Resized" or "⚠ Below the bar". Other rows show a dash.
+Only files that can be safely removed get a tick box: those with the result "Verified", "Resized" or "⚠ Below target". Other rows show a dash.
 
 **Select All**
 :   Ticks every file that has a tick box, including those with a warning sign.
 
 **Select Recommended**
-:   Ticks only files that cleared the quality bar. Anything with a warning sign is left out.
+:   Ticks only files that cleared the quality target. Anything with a warning sign is left out.
 
-Both buttons toggle: they change to **Deselect All** and **Deselect Recommended** once used. You can also tick rows one by one. See [the quality bar](../internals/quality.md) for what "recommended" means.
+Both buttons toggle: they change to **Deselect All** and **Deselect Recommended** once used. You can also tick rows one by one. See [the quality target](../internals/quality.md) for what "recommended" means.
 
 ## Send originals to the Recycle Bin
 
@@ -50,10 +50,16 @@ A progress bar shows "Re-checking and removing N of M". Before each original is 
 
 Conversions are saved beside the original with tags added to the name, such as `_(h265)` or `_(1080p)_(h265)`. After an original has gone to the Recycle Bin, you can give the conversion the original's name.
 
-1. Click **Remove the added tags from names**. It is disabled until at least one original from this session has been sent to the Recycle Bin, and then reads **Remove the added tags from N name(s)…**.
+1. Click **Remove the added tags from names**. It is disabled until at least one original has been sent to the Recycle Bin, and then reads **Remove the added tags from N name(s)…**.
 2. Answer **Yes** or **No** to the question "Remove the added tags from names?". Unlike deleting, this is a simple Yes/No question.
 
 Only the name changes. A progress bar shows "Renaming". A rename never overwrites another file. If a file can't be renamed, it is skipped and listed under "Left as they are". If you later restore an original from the Recycle Bin, Windows will ask what to do about the same name.
+
+## Start Over
+
+When you are done, exit the app or click **Start Over**. Either way, ClipShrink forgets these files. **Start Over** also returns to an empty step 1. Neither touches your videos, and the [reports](reports.md) stay.
+
+Originals can only be removed here for the batch you just ran, because that's when the app has checked their conversions. If you exit first, remove those originals yourself.
 
 ## If something fails
 
@@ -65,5 +71,5 @@ The full list of messages is in [Warnings and messages](warnings.md).
 
 ## Next steps
 
-- [Reports & Statistics](reports.md)
+- [Reports](reports.md)
 - [Warnings and messages](warnings.md)

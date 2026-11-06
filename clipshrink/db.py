@@ -1,14 +1,16 @@
 """The batch's memory. Every state change is on disk before work moves on,
 which is what makes resume after a crash possible."""
 import sqlite3, time
+from . import config
 from dataclasses import dataclass
 from pathlib import Path
 
 _COLS = ["source", "status", "reason", "source_size", "source_mtime_ns", "output", "output_size", "output_mtime_ns",
          "output_sha256", "vmaf_mean", "vmaf_p1", "encoder", "quality", "encode_runs", "updated", "codec", "source_width",
-         "source_height", "output_width", "output_height", "duration"]
+         "source_height", "output_width", "output_height", "duration", "target_mean", "target_p1"]
 _ADDED = {"codec": "TEXT DEFAULT ''", "source_width": "INT DEFAULT 0", "source_height": "INT DEFAULT 0",
-          "output_width": "INT DEFAULT 0", "output_height": "INT DEFAULT 0", "duration": "REAL DEFAULT 0"}
+          "output_width": "INT DEFAULT 0", "output_height": "INT DEFAULT 0", "duration": "REAL DEFAULT 0",
+          "target_mean": "REAL DEFAULT 0", "target_p1": "REAL DEFAULT 0"}
 
 
 @dataclass
@@ -34,6 +36,21 @@ class Record:
     output_width: int = 0
     output_height: int = 0
     duration: float = 0.0
+    target_mean: float = 0.0    # the values this file was judged by. 0 means the defaults.
+    target_p1: float = 0.0
+
+    @property
+    def warn_mean(self):
+        return self.target_mean or config.VMAF_MEAN_MIN
+
+    @property
+    def warn_p1(self):
+        return self.target_p1 or config.VMAF_P1_MIN
+
+    @property
+    def meets_target(self):
+        return (self.vmaf_mean is not None and self.vmaf_p1 is not None and self.vmaf_mean >= self.warn_mean
+                and self.vmaf_p1 >= self.warn_p1)
 
     @property
     def resized(self):
@@ -51,7 +68,7 @@ def _prepare(c):
         source_size INT, source_mtime_ns INT, output TEXT, output_size INT, output_mtime_ns INT, output_sha256 TEXT,
         vmaf_mean REAL, vmaf_p1 REAL, encoder TEXT, quality REAL, encode_runs INT, updated REAL, codec TEXT DEFAULT '',
         source_width INT DEFAULT 0, source_height INT DEFAULT 0, output_width INT DEFAULT 0, output_height INT DEFAULT 0,
-        duration REAL DEFAULT 0)""")
+        duration REAL DEFAULT 0, target_mean REAL DEFAULT 0, target_p1 REAL DEFAULT 0)""")
     have = {row[1] for row in c.execute("PRAGMA table_info(files)")}
     for name, kind in _ADDED.items():       # older databases gain the new columns
         if name not in have:
@@ -84,6 +101,16 @@ def save(db, rec):
         with c:
             c.execute(f"INSERT OR REPLACE INTO files({','.join(_COLS)}) VALUES({','.join('?' * len(_COLS))})",
                       [getattr(rec, k) for k in _COLS])
+    finally:
+        c.close()
+
+
+def clear(db):
+    """Forgets every file. Reports are separate and stay."""
+    c = _connect(db)
+    try:
+        with c:
+            c.execute("DELETE FROM files")
     finally:
         c.close()
 

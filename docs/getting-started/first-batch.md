@@ -1,6 +1,6 @@
 # Your first batch
 
-ClipShrink walks you through four numbered steps, plus a **Reports & Statistics** page. This is a short tour; each section links to the page that explains it fully.
+ClipShrink walks you through four numbered steps. This is a short tour; each section links to the page that explains it fully.
 
 ## 1. Find videos
 
@@ -20,7 +20,7 @@ More in [Estimates](../user-guide/estimates.md).
 
 ## 3. Convert
 
-Click **Start converting**. Each conversion is saved beside its original with `_(h265)` added to the name (`_(av1)` if you chose AV1 in [Settings](../user-guide/settings-and-data.md)). You can pause at any time, and if the PC crashes, reopen the app to continue.
+On the step before, click **Start converting** and the batch begins by itself. Each conversion is saved beside its original with `_(h265)` added to the name (`_(av1)` if you chose AV1 in [Settings](../user-guide/settings-and-data.md)). You can pause at any time, and if the PC crashes, reopen the app to continue.
 
 ![The Convert page with progress bars for a running batch](../images/3-convert.png)
 
@@ -28,7 +28,7 @@ More in [Converting](../user-guide/converting.md).
 
 ## 4. Compare and clean up
 
-Play any original beside its conversion, in sync. When you are happy, you can optionally send originals to the Recycle Bin. This step is optional.
+Play any original beside its conversion, in sync. When you are happy, you can optionally send originals to the Recycle Bin. Click **Start Over** when you're done, to forget those files and begin again from step 1.
 
 !!! warning
     Only send an original to the Recycle Bin after you are satisfied with its conversion, especially for files that carry a warning sign.
@@ -37,13 +37,9 @@ Play any original beside its conversion, in sync. When you are happy, you can op
 
 More in [Compare and clean up](../user-guide/compare-and-clean-up.md).
 
-## Reports & Statistics
+## Reports
 
-Every batch keeps its own report automatically. The **Reports & Statistics** page shows your totals and lets you export or delete reports.
-
-![The Reports & Statistics page with totals and a list of batch reports](../images/5-reports-and-statistics.png)
-
-More in [Reports](../user-guide/reports.md).
+Every batch leaves a CSV report in a folder you can open from **About**. See [Reports](../user-guide/reports.md).
 
 ## Next steps
 

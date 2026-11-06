@@ -1,7 +1,7 @@
 ; Per-user install: no administrator password, no separate downloads.
 [Setup]
 AppName=ClipShrink
-AppVersion=1.5.1
+AppVersion=1.6
 AppPublisher=ClipShrink
 DefaultDirName={localappdata}\Programs\ClipShrink
 DefaultGroupName=ClipShrink
@@ -17,6 +17,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 ArchitecturesAllowed=x64compatible
 UninstallDisplayIcon={app}\ClipShrink.exe
 WizardStyle=modern
+SetupIconFile=..\assets\clipshrink.ico
 
 [Files]
 Source: "..\dist\ClipShrink\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion

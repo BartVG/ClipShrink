@@ -60,7 +60,7 @@ def _pick(combo, value):
 
 
 def test_sidebar_has_settings_first(win):
-    assert win.sidebar_buttons()[:3] == ["Settings", "About", "Reports & Statistics"]
+    assert win.sidebar_buttons()[0] == "Settings"
     win.settings_btn.click()
     assert win.stack.currentWidget() is win.settings_page
 
@@ -111,15 +111,15 @@ def test_changing_a_setting_clears_the_estimate(win):
     win._estimate_done(Estimate(10, 5, 4, 6, 60.0, "x265", [], 1))
     assert win.can_convert() and win.to_convert.isEnabled()
     _pick(win.codec_box, "av1")
-    assert not win.can_convert() and not win.to_convert.isEnabled() and not win.start_btn.isEnabled()
+    assert not win.can_convert() and not win.to_convert.isEnabled()
 
 
 def test_settings_are_locked_while_converting(win):
     win.busy = True
-    win.go(6)
+    win.go(5)
     assert not win.codec_box.isEnabled() and not win.settings_reset.isEnabled()
     win.busy = False
-    win.go(6)
+    win.go(5)
     assert win.codec_box.isEnabled()
 
 
@@ -128,7 +128,7 @@ def test_plain_warnings_for_the_riskier_choices(win):
     win.show()
     _pick(win.codec_box, "av1")
     _pick(win.resolution_box, "1080p")
-    win.go(6)
+    win.go(5)
     assert "fewer devices" in win.codec_note.text() and not win.codec_note.isHidden()
     assert "detail" in win.resolution_note.text().lower() and not win.resolution_note.isHidden()
     win.close()
@@ -137,7 +137,7 @@ def test_plain_warnings_for_the_riskier_choices(win):
 def test_page_says_what_is_actually_in_use(win, monkeypatch):
     from clipshrink import encode
     monkeypatch.setattr(encode, "encoder_available", lambda name: False)
-    win.go(6)
+    win.go(5)
     assert "processor" in win.using_label.text().lower()
     monkeypatch.setattr(encode, "encoder_available", lambda name: True)
     _pick(win.codec_box, "av1")
@@ -211,7 +211,7 @@ def test_tick_boxes_in_settings_and_delete_dialog_can_be_seen(win, qapp_instance
     from clipshrink.ui import DeleteDialog, apply_theme
     apply_theme(qapp_instance)
     win.show()
-    win.go(6)
+    win.go(5)
     qapp_instance.processEvents()
     assert _darkest_left(win.details_box) < 170, "no visible tick box"
     d = DeleteDialog(win, "text")
@@ -224,7 +224,7 @@ def test_tick_boxes_in_settings_and_delete_dialog_can_be_seen(win, qapp_instance
 
 def test_ticked_box_in_settings_looks_different(win, qapp_instance):
     win.show()
-    win.go(6)
+    win.go(5)
     qapp_instance.processEvents()
     before = win.details_box.grab().toImage()
     win.details_box.setChecked(True)

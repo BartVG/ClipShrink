@@ -6,7 +6,7 @@ Step 2 tells you roughly how much space you would save, before a single file is 
 
 ## Run the test encodes
 
-1. Optionally change the format, size or encoder in [Settings](settings-and-data.md). The estimate follows them.
+1. Optionally change the format, size, encoder or [advanced values](advanced-settings.md) in [Settings](settings-and-data.md). The estimate follows them.
 2. Click **Run the test encodes**.
 
 ClipShrink picks up to five of your ticked videos, spread across the different resolutions and frame rates in your selection, larger files first within each kind of footage. It cuts a few short pieces from each, converts them, and compares them with the originals. A progress bar shows how many of the files are done. The Convert step stays locked until an estimate exists, and changing **Speed** clears the estimate so you measure again.
@@ -32,10 +32,10 @@ Each row is one sample taken from one file:
 | At | Where in the video, as `m:ss` |
 | Original, H.265 | Size of the sample before and after. The H.265 column shows the converted size in whichever format you chose. |
 | VMAF average, VMAF worst 1% | VMAF is a quality score from 0 to 100 that rates how close the conversion looks to the original. The average covers all frames; the worst 1% shows the weakest moments. |
-| Clears the bar? | `Yes`, or `⚠ No, would get a warning` |
+| Meets the quality target? | `Yes`, or `⚠ No, would get a warning` |
 
-!!! note "How the quality bar works"
-    The bar is a VMAF average of at least 95 and a worst 1% of frames of at least 90. The note under the table says so, and adds that every full file is measured again after conversion. A "No" here is a preview: that file would still be converted, but with a warning sign you should look at. See [Warnings](warnings.md).
+!!! note "How the quality target works"
+    The target is a VMAF average of at least 95 and a worst 1% of frames of at least 90. The note under the table says so, and adds that every full file is measured again after conversion. A "No" here is a preview: that file would still be converted, but with a warning sign you should look at. See [Warnings](warnings.md).
 
 ## How sure is it?
 
@@ -43,5 +43,5 @@ It is an estimate from real test encodes of your own footage, not a promise. The
 
 ## Next steps
 
-- Happy with the numbers? Go to **Next: convert →** and read [Converting](converting.md).
+- Happy with the numbers? Click **Start converting →**, which begins the batch, and read [Converting](converting.md).
 - Want the details of the method? See [How estimation works](../internals/estimation.md).

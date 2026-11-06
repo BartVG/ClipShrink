@@ -14,7 +14,7 @@ The safety model is simple: ClipShrink never changes an original, and it never r
 
 Originals are never deleted permanently by ClipShrink. They are sent to the Windows Recycle Bin through the shell with the undo flag, so you can restore them. The only code that removes an original is this one, and success requires that Windows reports no error and the file is gone. If Windows does not move a file, it is left in place and listed with a reason.
 
-Only conversions with status `verified` or `below_bar` can be removed. Before each file, ClipShrink checks that:
+Only conversions with status `verified` or `below_bar` can be removed, and only from the current batch, because the app forgets files afterwards. Before each file, ClipShrink checks that:
 
 1. the record exists;
 2. the original's size and modified time are unchanged since verification;
@@ -26,10 +26,10 @@ The original is checked by size and modified time, not by a hash. Only the conve
 
 ### Confirmation
 
-A single dialog, "Send originals to the Recycle Bin?", must be accepted: its "Send to Recycle Bin" button stays disabled until the "I understand" box is ticked, and the default button is "Keep them". If any ticked file is below the bar, or at a lower resolution, the same dialog adds a warning paragraph for each. The steps as you see them are in [Compare and clean up](../user-guide/compare-and-clean-up.md#send-originals-to-the-recycle-bin).
+A single dialog, "Send originals to the Recycle Bin?", must be accepted: its "Send to Recycle Bin" button stays disabled until the "I understand" box is ticked, and the default button is "Keep them". If any ticked file is below the default 95 / 90, even if it met your own lower values, or is at a lower resolution, the same dialog adds a warning paragraph for each. The steps as you see them are in [Compare and clean up](../user-guide/compare-and-clean-up.md#send-originals-to-the-recycle-bin).
 
-!!! warning "Below-bar originals"
-    Once an original is also gone from the Recycle Bin, any quality lost in a below-bar conversion cannot be recovered.
+!!! warning "Below-target originals"
+    Once an original is also gone from the Recycle Bin, any quality lost in a below-target conversion cannot be recovered.
 
 ### Renaming
 

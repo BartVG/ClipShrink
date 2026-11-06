@@ -6,10 +6,13 @@ Open **Settings** in the sidebar. The defaults suit most people, so you can leav
 
 | Choice | What it does |
 | --- | --- |
-| Graphics card (fast, recommended) | Uses your NVIDIA card. This is the default. If no NVIDIA card can do the job, the page says so and the processor is used. |
+| Graphics card (fast, recommended) | Uses your NVIDIA card. This is the default, and the entry names the card, for example "NVIDIA GeForce RTX 5080 detected". |
 | Processor (slow, works on any PC) | Uses the processor, on any computer. |
 
-Other graphics cards aren't supported yet, so those PCs use the processor.
+ClipShrink checks with a short real encode, for the video format you chose. If the card can't do it, its entry is greyed out, Processor is used, and the page says why:
+
+- **No compatible graphics card:** only NVIDIA is supported so far, so AMD and Intel cards use the processor.
+- **A card that can't make this format:** for example, some NVIDIA cards can make H.265 but not AV1. Switching back to H.265 brings the card back.
 
 ## Video format
 
@@ -18,7 +21,7 @@ Other graphics cards aren't supported yet, so those PCs use the processor.
 | H.265 (recommended) | The default. It plays on most devices from about 2016 onwards. Files end in `_(h265)`. |
 | AV1 | Files are usually smaller, but they play on fewer devices. Files end in `_(av1)`, and a `.mov` original becomes `.mp4`. |
 
-On one real 26-second 1080p clip of 101.4 MB, each of these cleared the quality bar:
+On one real 26-second 1080p clip of 101.4 MB, each of these cleared the quality target:
 
 | Format | Encoded with | Size | Time |
 | --- | --- | --- | --- |
@@ -45,7 +48,7 @@ Whether GoPro's own software accepts AV1 files hasn't been tested.
 
 Tick this to add an **Encoding** column on the Convert and Compare pages, showing the format, the encoder, the quality setting, the resolution and the bitrate. Conversions made before version 1.4 only show what was recorded then.
 
-Changing any setting except this one clears the current estimate, so run the test encodes again. The quality bar and the number of test pieces are fixed.
+Changing any setting except this one clears the current estimate, so run the test encodes again. To change the quality target, see [Advanced settings](advanced-settings.md).
 
 A file that is already converted isn't converted again when you change a setting.
 
@@ -56,9 +59,9 @@ Everything stays on your PC; nothing is sent anywhere.
 | What | Where | Safe to delete? |
 | --- | --- | --- |
 | Settings | `%LOCALAPPDATA%\ClipShrink\settings.json` | Yes; you get the defaults again. |
-| History database | `%LOCALAPPDATA%\ClipShrink\state.db` | Only with the app closed (delete any `state.db-*` files next to it too). You lose the record of earlier conversions: the statistics, the Compare and clean up list, and the "Continue where you left off?" offer. Videos you already converted show as ready again and would be converted a second time (as `_H265_2`). Your videos themselves are not affected. |
+| Unfinished batch | `%LOCALAPPDATA%\ClipShrink\state.db` | Only with the app closed (delete any `state.db-*` files next to it too). It only holds the batch you are working on, so ClipShrink can continue after a crash. It is emptied when you exit after a finished batch or click **Start Over**. Your videos are not affected. |
 | Working files | `%LOCALAPPDATA%\ClipShrink\work` | Yes, with the app closed. It holds temporary files only. It is emptied after each file and when a conversion batch starts or ends; the test-encode folder is cleared after each estimate. |
-| Reports | `%LOCALAPPDATA%\ClipShrink\reports` | Yes; the batch then no longer appears on the Reports & Statistics page. One CSV file per batch, named like `report_2026-11-06_141500.csv`. See [Reports & Statistics](reports.md). |
+| Reports | `%LOCALAPPDATA%\ClipShrink\reports` | Yes. One CSV file per batch, named like `report_2026-11-06_141500.csv`, only for your information. The **About** page has a link to the folder. See [Reports](reports.md). |
 | Your conversions | Beside each original, ending in `_(h265)` or `_(av1)`, or `_H265` or `_AV1` before version 1.5 | These are your results. Delete them only if you want to lose them. |
 
 If your account has no `LOCALAPPDATA` folder, ClipShrink uses a `ClipShrink` folder in your home folder instead.
@@ -70,9 +73,10 @@ To open the data folder, paste this into the address bar of File Explorer:
 ```
 
 !!! tip
-    The About page in the app also tells you where your data lives.
+    The **About** page in the app has a link to the reports folder.
 
 ## Next steps
 
-- [Reports & Statistics](reports.md)
+- [Advanced settings](advanced-settings.md)
+- [Reports](reports.md)
 - [FAQ](faq.md)

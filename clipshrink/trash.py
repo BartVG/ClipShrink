@@ -1,11 +1,11 @@
 """Stage 4: optional cleanup. Only originals with a checked conversion, only with
 explicit confirmation, only to the Recycle Bin. Originals of conversions below the
-quality bar need a second confirmation."""
+default quality target need a second confirmation, even if they met a lower one."""
 import ctypes, os
 from ctypes import wintypes
 from dataclasses import dataclass, field
 from pathlib import Path
-from . import db, engine, scan
+from . import config, db, engine, scan
 
 @dataclass
 class DeleteResult:
@@ -153,8 +153,10 @@ def delete_originals(db_path, paths, confirmed=False, below_bar_confirmed=False,
             continue
         rec = db.get(db_path, p)
         reason = why_not_deletable(rec, deep=True)
-        if not reason and rec.status == "below_bar" and below_bar_confirmed is not True:
-            reason = "its conversion is below the quality bar, and that was not confirmed"
+        low = rec is not None and (rec.status == "below_bar" or (rec.vmaf_mean is not None
+                                                                 and not config.is_recommended(rec.vmaf_mean, rec.vmaf_p1)))
+        if not reason and low and below_bar_confirmed is not True:
+            reason = "its conversion is below the default quality target, and that was not confirmed"
         if not reason and rec.resized and resized_confirmed is not True:
             reason = "its conversion has a lower resolution, and that was not confirmed"
         if reason:
