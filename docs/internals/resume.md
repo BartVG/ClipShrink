@@ -1,3 +1,66 @@
 # Pause, resume and crash recovery
 
-This page is being written.
+ClipShrink saves every state change to a small database before work moves on, so pausing, stopping and crashing are all safe for finished files.
+
+## Pause
+
+Pause is held in memory only. While FFmpeg is running, pausing suspends the FFmpeg process in place (Windows `NtSuspendProcess`), so no progress is lost. During the steps that run inside ClipShrink itself (hashing, the final copy, building the MP4), pause takes effect at the next checkpoint instead. Closing the app while paused does not keep the paused state.
+
+## Stop
+
+Closing the window while converting asks "Stop converting?". If you confirm, the current file goes back to `pending`, its temporary files are removed, and finished files are kept. A stopped run does not write a final batch report.
+
+## Crash recovery
+
+FFmpeg runs inside a Windows Job Object that kills it if ClipShrink dies, so no encoder is left running. The next time a conversion starts, recovery does three things: records marked `encoding` go back to `pending`, the `.part` file beside the original is deleted, and every `work\job_*` folder is deleted. The interrupted file restarts from the beginning; no half-finished encode is reused.
+
+In the app, shortly after launch it looks for records that are `pending` or `encoding` whose source still exists. If it finds any, it asks "Continue where you left off?". Nothing resumes without a Yes. If you decline, the records stay and you are asked again next time.
+
+```mermaid
+flowchart TD
+    A["App starts"] --> B{"Pending or encoding files whose source exists?"}
+    B -- no --> Z["Normal start"]
+    B -- yes --> C["Continue where you left off?"]
+    C -- No --> Z
+    C -- Yes --> D["Recover: encoding to pending, delete .part and work folders"]
+    D --> E["Compare size and modified time with each record"]
+    E --> F{"Record state"}
+    F -- "same file: kept, failed, pending" --> G["Keep as is"]
+    F -- "same file: verified or below bar, output intact" --> G
+    F -- "original in Recycle Bin" --> H["Skip"]
+    F -- "changed source or output gone" --> I["New pending record"]
+    G --> J["Convert pending files, one at a time"]
+    I --> J
+    J -. "crash or stop" .-> A
+```
+
+## The state database
+
+The file is `%LOCALAPPDATA%\ClipShrink\state.db`, a SQLite database in WAL mode with full synchronous writes. It has one table, `files`, keyed by the source path (case-insensitive), with the status, reason, size and modified time of the source and the output, the output's SHA-256, both VMAF values, the encoder, the quality setting and the number of encodes.
+
+| Status | Shown as |
+|---|---|
+| `pending` | Waiting |
+| `encoding` | Working... |
+| `verified` | Verified |
+| `below_bar` | Below the bar (with a warning sign) |
+| `kept_original` | Original kept |
+| `failed` | Failed, original kept |
+| `original_deleted` | Original in Recycle Bin |
+
+"Done, has the original's name" is shown for a deleted original whose conversion was renamed; it is a display state, not a stored one.
+
+A file counts as unchanged when its size and modified time match the record. Conversions that are verified or below the bar are kept only while the output file still exists with the recorded size and time.
+
+## Files that are not retried
+
+`kept_original` and `failed` files with an unchanged source stay as they are on later runs. Only `pending` files are converted. If you change the original, it becomes a new pending record.
+
+## Work and `.part` files
+
+Encoder output is written under the work folder (`%LOCALAPPDATA%\ClipShrink\work` in the app) so half-finished files do not sync to Drive. The one partial file beside the original is `<name>_H265<ext>.part`, written during the final copy and renamed when complete. Recovery deletes the `.part` of the base name only. After a hard crash, a leftover `.part` of a numbered variant such as `_H265_2` would not be removed (inferred from the code, untested).
+
+## Next steps
+
+- [Continuing a batch in the app](../user-guide/converting.md)
+- [How your files stay safe](safety.md)
