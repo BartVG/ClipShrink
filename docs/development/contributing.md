@@ -59,7 +59,7 @@ It takes roughly 10 minutes and passes only if every test passes. A skipped test
 
 ## Build the installer
 
-Install Inno Setup 6, then run `build.bat`. The result is `dist\ClipShrink-Setup.exe`. See [Building](building.md).
+Install Inno Setup 6 for your user account (`build.bat` looks in `%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe`), then run `build.bat`. The result is `dist\ClipShrink-Setup.exe`. See [Building](building.md).
 
 ## Next steps
 

@@ -4,15 +4,15 @@ The safety model is simple: ClipShrink never changes an original, and it never r
 
 ## While converting
 
-- **Originals are only read.** The conversion is written beside the original as `<name>_H265<ext>`. If that name exists, a number is added (`_H265_2`, and so on), so nothing is overwritten.
+- **Originals are only read.** The conversion is written beside the original as `<name>_H265` plus an extension: the same for `.mp4`, `.mov` and `.m4v`, `.mp4` for `.lrv`, and `.mkv` for other types. If that name exists, a number is added (`_H265_2`, and so on), so nothing is overwritten.
 - **Delivery is staged.** The file is copied to a `.part` file and renamed only when complete, then given the original's created and modified times.
 - **The original is re-checked.** If its size or modified time changed while it was being converted, the file is marked failed and nothing is delivered.
 - **Bad results are refused.** A result that is not smaller, or does not match the original, is never delivered. See [Quality](quality.md).
-- **No orphan encoders.** FFmpeg runs in a Windows Job Object that kills it if ClipShrink exits or crashes.
+- **No orphan encoders.** FFmpeg runs in a Windows Job Object that kills it if ClipShrink exits or crashes. This covers FFmpeg encode and measure runs and the mpv player, not the short ffprobe and encoder-test probes.
 
 ## Removing originals
 
-Originals are never deleted permanently by ClipShrink. They are sent to the Windows Recycle Bin through the shell with the undo flag, so you can restore them. The only deletion call in the code is this one, and success requires that Windows reports no error and the file is gone. If Windows does not move a file, it is left in place and listed with a reason.
+Originals are never deleted permanently by ClipShrink. They are sent to the Windows Recycle Bin through the shell with the undo flag, so you can restore them. The only code that removes an original is this one, and success requires that Windows reports no error and the file is gone. If Windows does not move a file, it is left in place and listed with a reason.
 
 Only conversions with status `verified` or `below_bar` can be removed. Before each file, ClipShrink checks that:
 

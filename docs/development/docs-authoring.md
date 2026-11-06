@@ -5,7 +5,7 @@ How to add and edit pages on this site. The site is built with MkDocs Material f
 ## Add a page
 
 1. Create a `.md` file in the section folder, for example `docs/user-guide/my-topic.md`.
-2. Add it to that folder's `.nav.yml` so it appears in the navigation.
+2. Add it to that folder's `.nav.yml` so it appears in the navigation (the Project section is the exception: its pages are listed in `docs/.nav.yml`).
 
 Navigation order comes from the `.nav.yml` files (the awesome-nav plugin), not from a `nav:` block in `mkdocs.yml`. A page that is not listed in a `.nav.yml` still builds, but it is not in the menu.
 
@@ -22,14 +22,14 @@ Every section folder has an `index.md` that opens the section. Start each page w
 
 ## Links
 
-Link to other pages with relative `.md` links. Link to code, tests and other repository files with absolute GitHub URLs, because relative links to files outside `docs/` break the build.
+Link to other pages with relative `.md` links. Link to code, tests and other repository files with absolute GitHub URLs, because a relative link to a file outside `docs/` (such as `../clipshrink/ui.py`) points outside the site. A broken relative link fails `mkdocs build --strict`, locally and in CI.
 
 ```markdown
 See [Quality](../internals/quality.md) for the bar.
 The check is in [check.py](https://github.com/tophe323/ClipShrink/blob/main/check.py).
 ```
 
-Check your work with `mkdocs build --strict`. The Docs workflow (`.github/workflows/docs.yml`) runs the same command on pull requests that change `docs/`, `mkdocs.yml` or `requirements-docs.txt`.
+Check your work with `mkdocs build --strict`. The Docs workflow (`.github/workflows/docs.yml`) runs the same command on pull requests that change `docs/`, `mkdocs.yml`, `requirements-docs.txt` or the workflow file itself.
 
 ## Markdown extensions
 

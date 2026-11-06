@@ -8,7 +8,7 @@ Pause is held in memory only. While FFmpeg is running, pausing suspends the FFmp
 
 ## Stop
 
-Closing the window while converting asks "Stop converting?". If you confirm, the current file goes back to `pending`, its temporary files are removed, and finished files are kept. A stopped run does not write a final batch report.
+Closing the window while converting asks "Stop converting?". If you confirm, the current file goes back to `pending`, its temporary files are removed, and finished files are kept. A stopped run keeps the batch report as it stood after the last finished file; the stopped file is not added to it.
 
 ## Crash recovery
 
@@ -23,12 +23,10 @@ flowchart TD
     B -- yes --> C["Continue where you left off?"]
     C -- No --> Z
     C -- Yes --> D["Recover: encoding to pending, delete .part and work folders"]
-    D --> E["Compare size and modified time with each record"]
-    E --> F{"Record state"}
-    F -- "same file: kept, failed, pending" --> G["Keep as is"]
-    F -- "same file: verified or below bar, output intact" --> G
-    F -- "original in Recycle Bin" --> H["Skip"]
-    F -- "changed source or output gone" --> I["New pending record"]
+    D --> E["Compare size and modified time of each source with its record"]
+    E --> F{"Source changed?"}
+    F -- no --> G["Keep pending record"]
+    F -- yes --> I["Replace with new pending record"]
     G --> J["Convert pending files, one at a time"]
     I --> J
     J -. "crash or stop" .-> A
@@ -41,7 +39,7 @@ The file is `%LOCALAPPDATA%\ClipShrink\state.db`, a SQLite database in WAL mode 
 | Status | Shown as |
 |---|---|
 | `pending` | Waiting |
-| `encoding` | Working... |
+| `encoding` | Working… |
 | `verified` | Verified |
 | `below_bar` | Below the bar (with a warning sign) |
 | `kept_original` | Original kept |
@@ -50,7 +48,7 @@ The file is `%LOCALAPPDATA%\ClipShrink\state.db`, a SQLite database in WAL mode 
 
 "Done, has the original's name" is shown for a deleted original whose conversion was renamed; it is a display state, not a stored one.
 
-A file counts as unchanged when its size and modified time match the record. Conversions that are verified or below the bar are kept only while the output file still exists with the recorded size and time.
+When you add files that are already in the database, a file counts as unchanged when its size and modified time match the record. Conversions that are verified or below the bar are kept only while the output file still exists with the recorded size and time.
 
 ## Files that are not retried
 
@@ -58,7 +56,7 @@ A file counts as unchanged when its size and modified time match the record. Con
 
 ## Work and `.part` files
 
-Encoder output is written under the work folder (`%LOCALAPPDATA%\ClipShrink\work` in the app) so half-finished files do not sync to Drive. The one partial file beside the original is `<name>_H265<ext>.part`, written during the final copy and renamed when complete. Recovery deletes the `.part` of the base name only. After a hard crash, a leftover `.part` of a numbered variant such as `_H265_2` would not be removed (inferred from the code, untested).
+Encoder output is written under the work folder (`%LOCALAPPDATA%\ClipShrink\work` in the app). The one partial file beside the original is `<name>_H265<ext>.part`, written during the final copy and renamed when complete.
 
 ## Next steps
 

@@ -4,7 +4,7 @@ ClipShrink is a Python package, `clipshrink/`, with a Qt (PySide6) interface on 
 
 ## Module map
 
-The diagram shows imports between the modules. Solid arrows point from the importing module to the imported one. The dashed arrow is an import made inside a function, not at the top of the file. `config` and `tools` are left out of the arrows because many modules use them (see the table).
+The diagram shows imports between the modules. Solid arrows point from the importing module to the imported one. The dashed arrows are imports made inside a function, not at the top of the file. `config` and `tools` are left out of the arrows because many modules use them (see the table).
 
 ```mermaid
 flowchart LR
@@ -29,6 +29,7 @@ flowchart LR
     trash --> db
     reports --> db
     reports -.-> trash
+    player -.-> scan
 ```
 
 ## What each module does

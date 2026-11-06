@@ -12,10 +12,6 @@ exclude_docs: |
 not_in_nav: |
   /how-it-works.md
 
-validation:
-  links:
-    not_found: info
-
 theme:
   name: material
   palette:

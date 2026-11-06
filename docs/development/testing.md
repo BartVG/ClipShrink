@@ -8,7 +8,7 @@ The check runs the whole test suite and passes only if every test passes. A skip
 check.bat
 ```
 
-A full run took between 9.1 and 13.7 minutes in the logged runs (see [Test history](../test-history.md)).
+Passing runs in the log took between 8.5 and 13.7 minutes (see [Test history](../test-history.md)).
 
 `check.bat` runs `check.py` with the `.venv` Python. `check.py`:
 

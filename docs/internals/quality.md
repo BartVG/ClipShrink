@@ -25,11 +25,13 @@ The search tries the 9 quality settings of the chosen encoder by binary search. 
 ```mermaid
 flowchart TD
     A["Built file"] --> B{"Smaller than the original?"}
-    B -- no --> K["Kept original"]
+    B -- no --> R{"Earlier below-bar attempt held?"}
+    R -- no --> K["Kept original"]
+    R -- yes --> W
     B -- yes --> C{"Properties and tracks match?"}
-    C -- no --> K
+    C -- no --> R
     C -- yes --> D{"VMAF frames = source frames?"}
-    D -- no --> K
+    D -- no --> R
     D -- yes --> E{"Average ≥ 95 and worst 1% ≥ 90?"}
     E -- yes --> V["Verified"]
     E -- no --> F{"Stricter setting left?"}
@@ -56,7 +58,7 @@ In words:
 
 ## Measured example
 
-On one real 26-second 1080p clip of 101.4 MB (from the project's own measurements):
+Measured by the project author on one real 26-second 1080p clip of 101.4 MB (from the original How it works page); not reproduced by the automated tests:
 
 | Encoder | Size | VMAF average | Worst 1% | Time |
 |---|---|---|---|---|

@@ -30,7 +30,8 @@ flowchart TD
     C --> D["Encode the video track"]
     D --> E["Build the file: graft or remux"]
     E --> F["Verify: size, properties, tracks"]
-    F -- "not smaller or mismatch" --> K
+    F -- "not smaller or mismatch, first try" --> K
+    F -- "not smaller or mismatch, after a below-bar try" --> J
     F --> G["Measure VMAF on every frame"]
     G --> H{"Quality gate"}
     H -- "meets the bar" --> I["Deliver as Verified"]
@@ -47,8 +48,8 @@ Step by step:
 2. **Find the quality setting.** A binary search on short samples finds the loosest setting whose samples clear the bar by a margin. See [Quality](quality.md).
 3. **Encode.** FFmpeg encodes the video track only, keeping every frame timestamp.
 4. **Build the file.** For `.mp4`, `.mov`, `.m4v` and `.lrv` files, ClipShrink's own writer swaps the video into the original's structure. Other containers are remuxed by FFmpeg. See [GoPro data](gopro-data.md).
-5. **Verify.** The result must be smaller, match the original's properties, and score well on a full-file VMAF comparison.
-6. **Deliver.** A passing file is copied beside the original as `<name>_H265<ext>`, through a `.part` file, and given the original's dates.
+5. **Verify.** The result must be smaller and match the original's properties, and a full-file VMAF comparison scores it. A result that misses the quality bar is retried at stricter settings; if none clears it, the best attempt is delivered with a warning.
+6. **Deliver.** A verified file (or the best below-bar attempt, with a warning) is copied beside the original as `<name>_H265` plus `.mp4`, `.mov` or `.m4v` as in the original (an `.lrv` becomes `.mp4`, other containers become `.mkv`), through a `.part` file, and given the original's dates.
 7. **Report.** The batch's CSV report is rewritten after every file, so a crash keeps the record of everything finished.
 
 Progress for one file is weighted 15% search, 55% encode and 30% verify. For the code layout see [Architecture](../development/architecture.md).
@@ -61,7 +62,7 @@ NVENC has one trap: without a high `-maxrate`, it limits itself to around 25 Mbi
 
 ## Reports
 
-Each batch that converts at least one file writes a CSV report in a `reports` folder next to the state database, which is `%LOCALAPPDATA%\ClipShrink\reports` in the app. Exports to XLSX and PDF are made from that file on demand. Statistics come from the state database rather than the reports, so deleting a report does not change your totals. Values that start with `=`, `+`, `-` or `@` get a leading apostrophe so a file name cannot act as a spreadsheet formula. See [Reports](../user-guide/reports.md).
+Each batch writes a CSV report once its first file is finished, in a `reports` folder next to the state database, which is `%LOCALAPPDATA%\ClipShrink\reports` in the app. Exports to XLSX and PDF are made from that file on demand. Statistics come from the state database rather than the reports, so deleting a report does not change your totals. Values that start with `=`, `+`, `-` or `@` get a leading apostrophe so a file name cannot act as a spreadsheet formula. See [Reports](../user-guide/reports.md).
 
 ## Next steps
 

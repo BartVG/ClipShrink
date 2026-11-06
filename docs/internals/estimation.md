@@ -20,7 +20,7 @@ The samples at the chosen setting are what the estimate uses. If no setting clea
 1. **Ratio per file:** encoded sample bytes divided by source sample bytes, capped at **1.0**. The estimate never predicts growth, and refusals for "not smaller" are not modelled.
 2. **Ratio per group:** the average of its files' ratios. A group with no sampled file uses the average of all ratios.
 3. **Expected saving:** the sum over all selected files of `video bytes × (1 − group ratio)`. Only video bytes count; audio and other tracks are not part of the saving.
-4. **Range:** the low end uses the highest group ratio widened by 20%, the high end uses the lowest group ratio reduced by 20%, so the range is about a fifth either way. The expected value always lies inside it, and the high end cannot exceed the total size.
+4. **Range:** the low end uses the highest sampled file ratio in the file's group (or among all samples if the group has none), raised by 20% and capped at 1.0; the high end uses the lowest such ratio, reduced by 20%. The 20% applies to the ratio, not to the saving. The expected value always lies inside it, and the high end cannot exceed the total size.
 5. **Time:** the measured seconds of encoding plus VMAF per second of sample, multiplied by the total duration of all selected files, plus **15%** for each file's own quality search.
 
 The headline in the app reads "About {saved} saved ({percent}%)", followed by the likely range and the time.
