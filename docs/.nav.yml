@@ -1,0 +1,12 @@
+nav:
+  - index.md
+  - Getting started: getting-started
+  - User guide: user-guide
+  - How it works: internals
+  - Development: development
+  - Project:
+      - project/index.md
+      - project/changelog.md
+      - Test history: test-history.md
+      - project/security.md
+      - project/license.md

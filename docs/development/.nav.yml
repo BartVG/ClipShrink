@@ -1,0 +1,8 @@
+nav:
+  - index.md
+  - setup.md
+  - architecture.md
+  - testing.md
+  - building.md
+  - contributing.md
+  - docs-authoring.md
