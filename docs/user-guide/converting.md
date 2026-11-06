@@ -36,7 +36,7 @@ While a file is being copied into place it has the extra ending `.part`, so a ha
 
 ## Graphics card or processor
 
-The **Speed** option on the previous page decides who does the encoding: your NVIDIA graphics card (fast) or your processor (slow, works on any PC). The default, "Automatic (recommended)", uses the graphics card when it can and the processor otherwise. The conversion uses the same choice as the estimate. If the graphics card's encoder reports an error during a batch, that file fails and the original is kept; ClipShrink does not switch to the processor mid-batch.
+The **Speed** option on the previous page decides whether your NVIDIA graphics card (fast) or your processor (slow, works on any PC) does the encoding. The conversion uses the same choice as the estimate; see [Settings and data](settings-and-data.md#the-speed-option). If the graphics card's encoder reports an error during a batch, that file fails and the original is kept; ClipShrink does not switch to the processor mid-batch.
 
 ## What can go wrong
 

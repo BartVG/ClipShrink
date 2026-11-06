@@ -29,15 +29,15 @@ If the writer meets something unexpected (for example a damaged file, no index, 
 
 ## Other containers
 
-Files in `.mkv`, `.avi`, `.mts`, `.m2ts`, `.ts` and `.3gp` are remuxed by FFmpeg (`-map 0:v -map 1:a? -map 1:s? -map_metadata 1 -c copy`) into `.mkv`. For these, the guarantees above do **not** apply:
+Files in `.mkv`, `.avi`, `.mts`, `.m2ts`, `.ts` and `.3gp` are remuxed by FFmpeg (repackaged without re-encoding; `-map 0:v -map 1:a? -map 1:s? -map_metadata 1 -c copy`) into `.mkv`. For these, the guarantees above do **not** apply:
 
 - data streams such as `gpmd` are not mapped and are dropped;
 - there is no byte-level check of other tracks; only the list of audio codec names is compared.
 
 Output names: `.mp4`, `.mov` and `.m4v` keep their extension, `.lrv` becomes `.mp4`, and everything else becomes `.mkv`.
 
-!!! warning "Test coverage"
-    The test suite uses synthetic GPMF-like `gpmd` and `fdsc` tracks, camera info, and timecode. A real HERO5-or-later clip with GPS is listed as untested in the README's limitations.
+!!! note "Test coverage"
+    The test suite uses synthetic `gpmd` and `fdsc` tracks that imitate GoPro's GPMF telemetry format, camera info, and timecode. A real HERO5-or-later clip with GPS is listed as untested in the README's limitations.
 
 ## Next steps
 

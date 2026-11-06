@@ -1,6 +1,6 @@
 # ClipShrink
 
-ClipShrink is a Windows app that batch converts H.264 videos to H.265 to free up disk space. Every conversion is compared with its original, frame by frame, and any that miss the quality bar get a warning sign so you decide what to keep. It works on any H.264 video and takes special care of GoPro files, keeping their telemetry.
+ClipShrink is a Windows app that batch converts H.264 videos to H.265 to free up disk space. H.265 is the newer video format: it holds the same picture in a smaller file. Every conversion is compared with its original, frame by frame, and any that miss the quality bar get a warning sign so you decide what to keep. It works on any H.264 video and takes special care of GoPro files, keeping their built-in sensor data (the telemetry).
 
 ![The Compare and clean up page, listing verified conversions with sizes and quality scores](images/4-compare-and-clean-up.png)
 
@@ -17,7 +17,7 @@ These numbers come from the measured batch in the project README: 34 real 1080p 
 | Lowest VMAF average | 95.5 (required: 95) |
 | Lowest worst-1% score | 90.3 (required: 90) |
 
-Individual clips saved between 9% and 77%. Your results depend on your footage, so the app measures your own files before you commit.
+VMAF is the score used to compare a conversion with its original, from 0 to 100 (see [How quality is checked](internals/quality.md)). Individual clips saved between 9% and 77%. Your results depend on your footage, so the app measures your own files before you commit.
 
 ## Download
 

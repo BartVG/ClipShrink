@@ -10,16 +10,16 @@
     ClipShrink refuses a result that is not smaller than the original, or that does not match it (for example different audio or camera info). The exact reason shows as a tooltip in the Result column and in the "Needs your attention" box. See [Warnings and messages](warnings.md).
 
 ??? question "What does the warning sign mean?"
-    The conversion is smaller and matches the original, but its VMAF score is under the bar (average 95, worst 1% 90). It is still saved, and you decide whether to keep it. Play it side by side first. See [the quality bar](../internals/quality.md).
+    The conversion is smaller and matches the original, but its VMAF quality score is under the bar (average 95, worst 1% 90). It is still saved, and you decide whether to keep it. Play it side by side first. See [the quality bar](../internals/quality.md).
 
 ??? question "Can I stop halfway?"
     You can click **Pause** and later **Resume** during a batch. If you close the window while a batch is running, ClipShrink asks "Stop converting?". The file being converted restarts next time, and finished files are kept. If the app or PC crashes, reopen it and choose to continue where you left off.
 
 ??? question "Where are my reports?"
-    In `%LOCALAPPDATA%\ClipShrink\reports`. The **Reports & Statistics** page has an **Open reports folder** button. See [Reports and statistics](reports.md).
+    In `%LOCALAPPDATA%\ClipShrink\reports`. The **Reports & Statistics** page has an **Open reports folder** button. See [Reports & Statistics](reports.md).
 
 ??? question "Where are the converted files?"
-    Beside each original, with `_H265` added to the name. Containers other than MP4, MOV, M4V and LRV are written as `.mkv`, and `.lrv` files become `.mp4`.
+    Beside each original, with `_H265` added to the name. Files of any type other than `.mp4`, `.mov`, `.m4v` and `.lrv` are written as `.mkv`, and `.lrv` files become `.mp4`.
 
 ??? question "The player shows an error. What now?"
     Messages such as "the video player could not open these files" or "the video player stopped" appear in a box. Close the player window and open the pair again. Both the original and the conversion must still be on disk, and the conversion must be verified or have a warning sign.

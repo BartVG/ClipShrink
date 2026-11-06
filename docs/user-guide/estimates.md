@@ -1,4 +1,4 @@
-# Seeing the saving
+# See the saving
 
 Step 2 tells you roughly how much space you would save, before a single file is converted. Your files are only read, and nothing appears in your folders.
 
@@ -31,7 +31,7 @@ Each row is one sample taken from one file:
 | Sample from, Folder | The file the sample was cut from |
 | At | Where in the video, as `m:ss` |
 | Original, H.265 | Size of the sample before and after |
-| VMAF average, VMAF worst 1% | How close the conversion is to the original, on a scale up to 100 |
+| VMAF average, VMAF worst 1% | VMAF is a quality score from 0 to 100 that rates how close the conversion looks to the original. The average covers all frames; the worst 1% shows the weakest moments. |
 | Clears the bar? | `Yes`, or `⚠ No, would get a warning` |
 
 !!! note "How the quality bar works"

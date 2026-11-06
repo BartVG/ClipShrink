@@ -6,7 +6,7 @@ After a batch finishes, step 4 lets you check each conversion against its origin
 
 The list shows every file from the batch with these columns: **Delete?**, **Original**, **Folder**, **Before**, **After**, **Saved**, **VMAF average**, **Worst 1%** and **Result**. Click a column title to sort. A big label above the list tells you how much space can be saved once the originals are removed.
 
-A "Needs your attention" box lists every file that was kept as the original, failed, or got a warning sign, with the reason. If all went well it says "Every conversion passed." See [Warnings and messages](warnings.md) for what each result means.
+A "Needs your attention" box lists every file that was kept as the original, failed, or got a warning sign, with the reason. If all went well it says "Every conversion passed." [Warnings and messages](warnings.md) explains each result.
 
 ## Compare in the side-by-side player
 
@@ -65,5 +65,5 @@ The full list of messages is in [Warnings and messages](warnings.md).
 
 ## Next steps
 
-- [Reports and statistics](reports.md)
+- [Reports & Statistics](reports.md)
 - [Warnings and messages](warnings.md)

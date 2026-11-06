@@ -1,8 +1,8 @@
-# Reports and statistics
+# Reports & Statistics
 
 ClipShrink keeps a report for each batch and totals your savings across all of them. Open the **Reports & Statistics** page from the sidebar.
 
-![The Reports and statistics page](../images/5-reports-and-statistics.png)
+![The Reports & Statistics page](../images/5-reports-and-statistics.png)
 
 ## What the automatic report contains
 

@@ -1,6 +1,6 @@
 # Warnings and messages
 
-A reference of the statuses, warning signs and messages you may see, grouped by page. For how the quality bar is decided, see [Quality](../internals/quality.md).
+A reference of the statuses, warning signs and messages you may see, grouped by page. VMAF is the quality score each conversion gets; the bar is an average of 95 and a worst 1% of 90. How it is decided is explained in [Quality measurement](../internals/quality.md).
 
 ## Result statuses
 

@@ -26,7 +26,7 @@ The original is checked by size and modified time, not by a hash. Only the conve
 
 ### Confirmation
 
-A single dialog, "Send originals to the Recycle Bin?", must be accepted. Its "Send to Recycle Bin" button stays disabled until you tick "I understand. Send these originals to the Recycle Bin.", and the default button is "Keep them". If any ticked file is below the bar, the same dialog adds a warning paragraph. "Select Recommended" leaves those files out.
+A single dialog, "Send originals to the Recycle Bin?", must be accepted: its "Send to Recycle Bin" button stays disabled until the "I understand" box is ticked, and the default button is "Keep them". If any ticked file is below the bar, the same dialog adds a warning paragraph. The steps as you see them are in [Compare and clean up](../user-guide/compare-and-clean-up.md#send-originals-to-the-recycle-bin).
 
 !!! warning "Below-bar originals"
     Once an original is also gone from the Recycle Bin, any quality lost in a below-bar conversion cannot be recovered.

@@ -1,6 +1,6 @@
 # Your first batch
 
-ClipShrink walks you through four numbered steps, plus a Reports & Statistics page. This is a short tour; each section links to the page that explains it fully.
+ClipShrink walks you through four numbered steps, plus a **Reports & Statistics** page. This is a short tour; each section links to the page that explains it fully.
 
 ## 1. Find videos
 
@@ -12,7 +12,7 @@ More in [Finding videos](../user-guide/finding-videos.md).
 
 ## 2. See the saving
 
-Click **Run the test encodes**. The app makes short test encodes from a few of your own files and shows the expected saving and time. Your files are only read.
+Click **Run the test encodes**. The app converts short pieces of a few of your own files as a trial and shows the expected saving and time. Your files are only read.
 
 ![The See the saving page showing the measured estimate](../images/2-see-the-saving.png)
 
@@ -47,4 +47,4 @@ More in [Reports](../user-guide/reports.md).
 
 ## Next steps
 
-Read the [User guide](../user-guide/index.md) for the full detail of each page.
+Read the [User guide](../user-guide/index.md) for the full detail of each page, or [Warnings and messages](../user-guide/warnings.md) if the app shows something you do not recognise.

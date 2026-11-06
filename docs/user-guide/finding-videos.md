@@ -53,4 +53,4 @@ Tick or untick any rows you like. **Next: see the saving →** stays disabled un
 
 ## Next steps
 
-- [Seeing the saving](estimates.md) before you convert anything.
+- [See the saving](estimates.md) before you convert anything.
