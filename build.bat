@@ -6,7 +6,7 @@ cd /d "%~dp0"
   --add-binary "vendor\ffmpeg\bin\ffprobe.exe;vendor\ffmpeg\bin" ^
   --add-data "vendor\ffmpeg\LICENSE.txt;vendor\ffmpeg" ^
   --add-binary "vendor\mpv\mpv.exe;vendor\mpv" ^
-  --add-data "LICENSE;." --add-data "THIRD_PARTY_NOTICES.md;." --add-data "licenses;licenses" ^
+  --add-data "LICENSE;." --add-data "THIRD_PARTY_NOTICES.md;." ^
   --exclude-module PySide6.QtWebEngineCore --exclude-module PySide6.QtQml --exclude-module PySide6.QtQuick ^
   --exclude-module PySide6.Qt3DCore --exclude-module PySide6.QtMultimedia ^
   app.py || exit /b 1
