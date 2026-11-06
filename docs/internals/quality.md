@@ -37,7 +37,8 @@ flowchart TD
     C -- yes --> D{"VMAF frames = source frames?"}
     D -- no --> R
     D -- yes --> E{"Average ≥ 95 and worst 1% ≥ 90?"}
-    E -- yes --> V["Verified"]
+    E -- "yes, original size" --> V["Verified"]
+    E -- "yes, smaller size" --> Z["Resized"]
     E -- no --> F{"Stricter setting left?"}
     F -- yes --> G["Remember as best, encode stricter"]
     G --> B
@@ -48,6 +49,7 @@ flowchart TD
 In words:
 
 - **Verified:** everything matches and both numbers meet the bar.
+- **Resized:** the same as Verified, for a video shrunk as chosen in Settings. The numbers compare it with a copy of the original at the same size.
 - **Below the bar:** everything matches and the file is smaller, but the score misses the bar even at the strictest setting. The file is delivered with a warning sign. There is no lower VMAF limit in the code.
 - **Kept original:** the video was not H.264, the result was not smaller, the result did not match the original, or VMAF did not compare the same number of frames as the source has. Nothing is delivered.
 - **Failed:** an error stopped the file (for example the encoder stopped, VMAF could not run, or the original changed during conversion). The original is kept.
