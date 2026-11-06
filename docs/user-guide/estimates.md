@@ -9,11 +9,11 @@ Step 2 tells you roughly how much space you would save, before a single file is 
 1. Optionally change **Speed** (see [Settings and data](settings-and-data.md)).
 2. Click **Run the test encodes**.
 
-ClipShrink picks up to five of your ticked videos, spread across the different resolutions and frame rates in your selection, larger files first. It cuts a few short pieces from each, converts them, and compares them with the originals. A progress bar shows which file it is on. The Convert step stays locked until an estimate exists, and changing **Speed** clears the estimate so you measure again.
+ClipShrink picks up to five of your ticked videos, spread across the different resolutions and frame rates in your selection, larger files first within each kind of footage. It cuts a few short pieces from each, converts them, and compares them with the originals. A progress bar shows how many of the files are done. The Convert step stays locked until an estimate exists, and changing **Speed** clears the estimate so you measure again.
 
 ## What the estimate shows
 
-The card at the top gives:
+The card at the top gives the following (these are parts of the card, not separate labelled fields):
 
 - **Saving**: "About *X* saved (*N*%)", for all the videos you ticked.
 - **Range**: "Likely between *low* and *high*, out of *total*". It is a range because the test encodes only cover some of your files.

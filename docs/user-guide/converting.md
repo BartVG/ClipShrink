@@ -32,7 +32,7 @@ Each conversion is saved next to its original with `_H265` added to the name, fo
 
 The result gets the original's creation and modified dates.
 
-While a file is being copied into place it has the extra ending `.part`, so a half-written file is never mistaken for a finished one. The `.part` file is removed when the copy finishes, or cleaned up if you stop. Everything else ClipShrink needs while working goes in its own folder, `%LOCALAPPDATA%\ClipShrink\work`, which is emptied afterwards. See [Settings and data](settings-and-data.md).
+While a file is being copied into place it has the extra ending `.part`, so a half-written file is never mistaken for a finished one. When the copy finishes, the file is renamed to its final name; a leftover `.part` file is deleted if you stop or after a crash. Everything else ClipShrink needs while working goes in its own folder, `%LOCALAPPDATA%\ClipShrink\work`, which is emptied afterwards. See [Settings and data](settings-and-data.md).
 
 ## Graphics card or processor
 

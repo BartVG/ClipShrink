@@ -20,7 +20,7 @@ These folders are never entered: `$RECYCLE.BIN`, `System Volume Information`, `.
 | File | File name |
 | Folder | Where it lives |
 | Size | File size |
-| Picture | Resolution and frame rate, for example `1920x1080 30 fps` |
+| Picture | Resolution and frame rate, for example `1920×1080 30 fps` |
 | Length | Duration as `m:ss` |
 | State | `Ready`, or why the file is treated differently |
 
@@ -33,8 +33,8 @@ Only H.264 videos can be converted, and most are ticked for you.
 | What you see in State | Ticked? | Why |
 | --- | --- | --- |
 | `Ready` | Yes | H.264 video not converted before |
-| `GoPro low-res preview, off by default` | No | `.lrv` files are the small preview copies GoPro cameras keep next to each clip. Tick them only if you want them shrunk too. |
-| `Verified`, or another earlier result | No (for verified ones) | You already converted this file (same size), so it is not queued again by default. |
+| `GoPro low-res preview, off by default` | No | `.lrv` files are GoPro's low-resolution preview versions of clips. Tick them only if you want them shrunk too. |
+| `Verified` or `⚠ Below the bar` | No | You already converted this file (same size), so it is not queued again by default. Other earlier results (such as `Original kept`) stay ticked. |
 | `Already H.265, skipped` | Cannot be ticked | The video is already H.265. |
 | `Already <CODEC>, skipped` | Cannot be ticked | Any other format, for example `Already VP9, skipped`. |
 

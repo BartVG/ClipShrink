@@ -54,7 +54,7 @@ These reasons appear on the compare page and in reports.
 | Conversion did not match the original, original kept: … | The check found a difference, for example "audio or telemetry tracks changed" or "camera info changed". |
 | VMAF compared N frames out of M, original kept. | The quality check did not cover every frame. |
 | VMAF below the recommended bar: average X (recommended 95), worst 1% Y (recommended 90). Compare it before removing the original. | The reason shown with "⚠ Below the bar". |
-| Could not convert, original kept: … | The status is "Failed". The error follows, for example that the encoder stopped, a file could not be written, or the original changed while it was converted. |
+| Could not convert, original kept: … | The status is "Failed, original kept". The error follows, for example that the encoder stopped, a file could not be written, or the original changed while it was converted. |
 
 ## Compare and clean up
 
@@ -94,7 +94,7 @@ Reasons a rename is refused:
 
 | Message | What it means |
 |---|---|
-| the video player did not start | The player could not be launched. |
+| the video player did not start | The player did not become ready within 20 seconds, or exited immediately. |
 | the video player could not open these files | The player did not open the pair in time, or exited. |
 | the video player is closed | The player was already closed. |
 | the video player stopped | The player stopped while playing. |

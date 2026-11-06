@@ -13,7 +13,7 @@ An NVIDIA graphics card makes conversion much faster and is used automatically. 
 ## In this section
 
 1. [Install](install.md): download and run the installer.
-2. [Your first batch](first-batch.md): a quick tour of the five steps in the app.
+2. [Your first batch](first-batch.md): a quick tour of the four steps in the app, plus the Reports & Statistics page.
 3. [User guide](../user-guide/index.md): the detail behind each step.
 
 ## Next steps

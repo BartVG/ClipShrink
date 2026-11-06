@@ -31,7 +31,7 @@
     Yes. Your original is untouched. The reason follows "Could not convert, original kept:". Failed files are not retried automatically in a later run while the original is unchanged.
 
 ??? question "Can I compare after I delete an original?"
-    No. The player needs both files on disk. Restore the original from the Recycle Bin first.
+    No. Once an original has been sent to the Recycle Bin, ClipShrink no longer offers the side-by-side player for that file, even if you restore the original afterwards.
 
 ??? question "Will my PC go to sleep during a batch?"
     The Convert page says your computer will not go to sleep while the batch runs.

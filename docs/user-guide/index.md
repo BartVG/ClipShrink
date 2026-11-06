@@ -10,7 +10,7 @@ ClipShrink works through four numbered steps in the sidebar, plus a reports page
 4. **Compare and clean up.** Play an original beside its conversion, and optionally send originals to the Recycle Bin. See [Compare and clean up](compare-and-clean-up.md).
 5. **Reports.** Statistics and a report for every batch. See [Reports and statistics](reports.md).
 
-Your originals are only read during conversion. Step 4 is the only place where anything is removed, and it is optional.
+Your originals are only read during conversion. Step 4 is the only place where your original videos are removed, and it is optional.
 
 ## Everything in this section
 

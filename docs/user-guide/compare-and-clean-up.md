@@ -44,7 +44,7 @@ Both buttons toggle: they change to **Deselect All** and **Deselect Recommended*
 
 If any ticked file has a warning sign, the same dialog adds a paragraph telling you how many of them have a conversion below the recommended quality, and that the lost quality can't be recovered once the original has left the Recycle Bin. It is one dialog with one tick box, not a second confirmation.
 
-A progress bar shows "Re-checking and removing N of M". Before each original is removed, ClipShrink re-checks that the conversion is still the one it verified. If a check fails, that original is left where it is and listed with a reason. When it finishes, a box tells you how many originals were moved and lists any that were "Left in place". Originals only ever go to the Recycle Bin, so you can restore them from there. The checks are explained in [Safety](../internals/safety.md).
+A progress bar shows "Re-checking and removing N of M". Before each original is removed, ClipShrink re-checks that the conversion is still the one it verified. If a check fails, that original is left where it is and listed with a reason. When it finishes, a box tells you how many originals were moved and lists any that were "Left in place". ClipShrink asks Windows to move originals to the Recycle Bin, so you can normally restore them from there. The checks are explained in [Safety](../internals/safety.md).
 
 ## Remove _H265 from the names (optional)
 
