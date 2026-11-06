@@ -44,19 +44,37 @@ class Record:
         return self.output_size * 8 / self.duration / 1e6 if self.duration and self.output_size else None
 
 
-def _connect(path):
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
-    c = sqlite3.connect(str(path), timeout=30)
+def _prepare(c):
     c.execute("PRAGMA journal_mode=WAL")
     c.execute("PRAGMA synchronous=FULL")
     c.execute("""CREATE TABLE IF NOT EXISTS files(source TEXT PRIMARY KEY COLLATE NOCASE, status TEXT, reason TEXT,
         source_size INT, source_mtime_ns INT, output TEXT, output_size INT, output_mtime_ns INT, output_sha256 TEXT,
-        vmaf_mean REAL, vmaf_p1 REAL, encoder TEXT, quality REAL, encode_runs INT, updated REAL)""")
+        vmaf_mean REAL, vmaf_p1 REAL, encoder TEXT, quality REAL, encode_runs INT, updated REAL, codec TEXT DEFAULT '',
+        source_width INT DEFAULT 0, source_height INT DEFAULT 0, output_width INT DEFAULT 0, output_height INT DEFAULT 0,
+        duration REAL DEFAULT 0)""")
     have = {row[1] for row in c.execute("PRAGMA table_info(files)")}
     for name, kind in _ADDED.items():       # older databases gain the new columns
         if name not in have:
             c.execute(f"ALTER TABLE files ADD COLUMN {name} {kind}")
-    return c
+
+
+def _connect(path):
+    """Several openers can arrive together, as the interface and the batch do. SQLite
+    reports "locked" at once while one switches to WAL, ignoring its timeout, and
+    two can both add a column. Both are harmless, so try again rather than crash."""
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    c = sqlite3.connect(str(path), timeout=30)
+    end = time.time() + 30
+    while True:
+        try:
+            _prepare(c)
+            return c
+        except sqlite3.OperationalError as ex:
+            text = str(ex)
+            if ("locked" not in text and "duplicate column" not in text) or time.time() > end:
+                c.close()
+                raise
+            time.sleep(0.05)
 
 
 def save(db, rec):

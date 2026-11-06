@@ -199,7 +199,7 @@ def test_ticks_stay_on_the_right_files_with_skipped_rows_present(dark_review, wo
 def test_version_is_one_place_and_shown(window):
     from pathlib import Path
     from clipshrink import config
-    assert config.VERSION == "1.4"
+    assert config.VERSION == "1.4.1"
     assert config.VERSION in window.windowTitle()
     iss = (Path(__file__).resolve().parents[1] / "installer" / "clipshrink.iss").read_text(encoding="utf-8")
     assert f"AppVersion={config.VERSION}" in iss
@@ -414,7 +414,7 @@ def test_about_page_says_what_this_is(window):
     window.about_btn.click()
     t = window.about_text().replace("\n", " ")
     assert window.stack.currentWidget() is window.about_page
-    assert "ClipShrink" in t and "1.4" in t and "GPL" in t and "github.com/tophe323/ClipShrink" in t
+    assert "ClipShrink" in t and "1.4.1" in t and "GPL" in t and "github.com/tophe323/ClipShrink" in t
     assert "FFmpeg" in t and "mpv" in t
 
 

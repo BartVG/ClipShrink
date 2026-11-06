@@ -104,3 +104,50 @@ def test_pause_stops_work_and_resume_finishes(get_clip, workspace):
     t.join(timeout=400)
     assert not t.is_alive()
     assert c.record(src).status == "verified"
+
+
+def _old_style_database(path):
+    import sqlite3
+    c = sqlite3.connect(str(path))
+    c.execute("""CREATE TABLE files(source TEXT PRIMARY KEY COLLATE NOCASE, status TEXT, reason TEXT,
+        source_size INT, source_mtime_ns INT, output TEXT, output_size INT, output_mtime_ns INT, output_sha256 TEXT,
+        vmaf_mean REAL, vmaf_p1 REAL, encoder TEXT, quality REAL, encode_runs INT, updated REAL)""")
+    c.execute("INSERT INTO files(source,status,source_size,output_size) VALUES('C:/a.mp4','verified',10,5)")
+    c.commit()
+    c.close()
+
+
+def test_many_openers_at_once_never_clash(workspace):
+    """Found by the automatic tests: two openers both added the new columns,
+    and one crashed with 'duplicate column name'."""
+    from clipshrink.db import read_records
+    for round_no in range(15):
+        for kind in ("new", "old"):
+            path = workspace / f"{kind}_{round_no}.db"
+            if kind == "old":
+                _old_style_database(path)
+            start, errors = threading.Barrier(8), []
+
+            def opener():
+                start.wait()
+                try:
+                    read_records(path)
+                except Exception as ex:
+                    errors.append(ex)
+
+            threads = [threading.Thread(target=opener) for _ in range(8)]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+            assert not errors, errors[0]
+
+
+def test_old_database_keeps_its_records_and_gains_the_new_fields(workspace):
+    from clipshrink.db import read_records
+    path = workspace / "old.db"
+    _old_style_database(path)
+    rec = read_records(path)[0]
+    assert rec.source == "C:/a.mp4" and rec.status == "verified" and rec.output_size == 5
+    assert rec.codec == "" and rec.output_width == 0 and rec.duration == 0
+    assert not rec.resized

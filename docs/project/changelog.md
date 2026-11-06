@@ -2,6 +2,11 @@
 
 Every released version of ClipShrink, newest first. The authoritative file is [CHANGELOG.md on GitHub](https://github.com/tophe323/ClipShrink/blob/main/CHANGELOG.md).
 
+## 1.4.1 - 2026-11-06
+
+### Fixed
+- The app could crash with "duplicate column name" or "database is locked" when two parts of it opened its database at the same moment, most likely on a first start after updating or on a new install.
+
 ## 1.4 - 2026-11-06
 
 ### Added

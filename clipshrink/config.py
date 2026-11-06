@@ -1,6 +1,6 @@
 """Fixed rules of the tool. These numbers are the promise made to the user."""
 APP_NAME = "ClipShrink"
-VERSION = "1.4"
+VERSION = "1.4.1"
 PROJECT_URL = "https://github.com/tophe323/ClipShrink"
 VMAF_MEAN_MIN = 95.0     # average score over every frame
 VMAF_P1_MIN = 90.0       # the worst 1% of frames must still reach this

@@ -10,7 +10,7 @@ body:
     attributes:
       label: ClipShrink version
       description: Shown in the window title
-      placeholder: "1.4"
+      placeholder: "1.4.1"
     validations:
       required: true
   - type: input
