@@ -22,7 +22,7 @@ pip install -r requirements-docs.txt
 mkdocs serve
 ```
 
-The site is at <http://127.0.0.1:8000/>. Check that it builds cleanly before you open a pull request:
+The site is at <http://127.0.0.1:8000/ClipShrink/>. Check that it builds cleanly before you open a pull request:
 
 ```powershell
 mkdocs build --strict

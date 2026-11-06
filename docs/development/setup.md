@@ -52,7 +52,7 @@ pip install -r requirements-docs.txt
 mkdocs serve
 ```
 
-The site is then at <http://127.0.0.1:8000/> and reloads when you save a page.
+The site is then at <http://127.0.0.1:8000/ClipShrink/> and reloads when you save a page.
 
 !!! warning "Already ran `setup_dev.bat`?"
     `setup_dev.bat` already created `.venv` with Python 3.12 for the app. Do not create `.venv` again. Activate it and install only the docs requirements:
