@@ -1,6 +1,8 @@
 # History of check runs
 
-Every completed full run while building versions 1.1 to 1.3. Your own runs are logged to `docs/check_history.md`, which stays on your PC.
+Every completed full run while building versions 1.1 to 1.3. A "full run" is one execution of `check.bat` (or `python check.py`), which runs the whole test suite and passes only if every test passes; a skipped test counts as a failure. Each run appends a row to `docs/check_history.md`. Your own runs are logged there, and that file stays on your PC.
+
+For how the tests are organized and how to run them, see [Testing](development/testing.md).
 
 | When | Took | Tests | Passed | Failed | Skipped | Result | Note |
 |---|---|---|---|---|---|---|---|
