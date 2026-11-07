@@ -2,8 +2,8 @@ name: tests
 
 # Runs everything that doesn't need private footage or an NVIDIA card. The full
 # check (check.bat) also needs a real GoPro clip, so it runs on a developer's PC.
-# The two player tests are left out here because mpv stops responding on these
-# test machines. They still run in check.bat.
+# The tests that start the real player are left out here because mpv stops
+# responding on these test machines. They still run in check.bat.
 on:
   push:
     branches: [main]
@@ -29,4 +29,4 @@ jobs:
           .venv\Scripts\python -m pip install -r requirements.txt
           .venv\Scripts\python tools\fetch_vendor.py
       - name: Run tests without the real-clip ones
-        run: .venv\Scripts\python -m pytest tests -q --tb=short --deselect tests/test_quality.py::test_real_clip_supplied --deselect tests/test_player.py --deselect tests/test_codec_and_size.py::test_side_by_side_works_when_sizes_differ_and_stays_in_sync
+        run: .venv\Scripts\python -m pytest tests -q --tb=short --deselect tests/test_quality.py::test_real_clip_supplied --deselect tests/test_player.py --deselect tests/test_codec_and_size.py::test_side_by_side_works_when_sizes_differ_and_stays_in_sync --deselect tests/test_version_1_7.py::test_real_player_zooms_400_percent
