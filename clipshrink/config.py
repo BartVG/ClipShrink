@@ -1,8 +1,9 @@
 """Fixed rules of the tool. These numbers are the promise made to the user."""
 from dataclasses import dataclass
+from .i18n import N_, g, tr
 
 APP_NAME = "ClipShrink"
-VERSION = "1.6.1"
+VERSION = "1.7"
 PROJECT_URL = "https://github.com/tophe323/ClipShrink"
 DOCS_URL = "https://tophe323.github.io/ClipShrink/"
 ADVANCED_DOCS_URL = DOCS_URL + "user-guide/advanced-settings/"
@@ -10,28 +11,28 @@ VMAF_MEAN_MIN = 95.0     # average score over every frame
 VMAF_P1_MIN = 90.0       # the worst 1% of frames must still reach this
 SAMPLE_MARGIN = 0.5      # test encodes must clear the target by this much
 
-STATUS_TEXT = {
-    "pending": "Waiting",
-    "encoding": "Working…",
-    "verified": "Verified",
-    "below_bar": "⚠ Below target",
-    "resized": "Resized",
-    "kept_original": "Original kept",
-    "failed": "Failed, original kept",
-    "original_deleted": "Original in Recycle Bin",
-    "renamed": "Done, has the original's name",
+STATUS_TEXT = {      # English; shown through tr()
+    "pending": N_("Waiting"),
+    "encoding": N_("Working…"),
+    "verified": N_("Verified"),
+    "below_bar": N_("⚠ Below target"),
+    "resized": N_("Resized"),
+    "kept_original": N_("Original kept"),
+    "failed": N_("Failed, original kept"),
+    "original_deleted": N_("Original in Recycle Bin"),
+    "renamed": N_("Done, has the original's name"),
 }
 
 
 def status_text(rec):
-    """The words shown for a record. A smaller copy never claims to be plain "Verified",
-    and neither does a file judged by anything other than the default values."""
+    """The words shown for a record, in the current language. A smaller copy never claims to
+    be plain "Verified", and neither does a file judged by anything other than the default values."""
     if rec.status == "verified":
-        word = STATUS_TEXT["resized"] if rec.resized else STATUS_TEXT["verified"]
         if rec.target_mean and (rec.target_mean, rec.target_p1) != (VMAF_MEAN_MIN, VMAF_P1_MIN):
-            return f"{word} at {rec.target_mean:g} / {rec.target_p1:g}"
-        return word
-    return STATUS_TEXT.get(rec.status, rec.status)
+            text = N_("Resized at {mean} / {p1}") if rec.resized else N_("Verified at {mean} / {p1}")
+            return tr(text).format(mean=g(rec.target_mean), p1=g(rec.target_p1))
+        return tr(STATUS_TEXT["resized"] if rec.resized else STATUS_TEXT["verified"])
+    return tr(STATUS_TEXT.get(rec.status, rec.status))
 
 
 def is_recommended(mean, p1):
@@ -83,7 +84,7 @@ CODEC_SUFFIX = {"h265": "_(h265)", "av1": "_(av1)"}
 SIZE_SUFFIX = {"4k": "_(4k)", "1080p": "_(1080p)", "720p": "_(720p)"}
 OLD_SUFFIXES = ("_H265", "_AV1")     # names used before 1.5
 ENCODER_CODEC = {"x265": "h265", "nvenc": "h265", "svtav1": "av1", "av1_nvenc": "av1"}
-ENCODER_NAMES = {"x265": "processor", "nvenc": "NVIDIA", "svtav1": "processor", "av1_nvenc": "NVIDIA"}
+ENCODER_NAMES = {"x265": N_("processor"), "nvenc": "NVIDIA", "svtav1": N_("processor"), "av1_nvenc": "NVIDIA"}
 RESOLUTIONS = {"original": None, "4k": (3840, 2160), "1080p": (1920, 1080), "720p": (1280, 720)}
 
 
@@ -110,12 +111,13 @@ VIDEO_EXTS = {".mp4", ".mov", ".m4v", ".mkv", ".avi", ".lrv", ".mts", ".m2ts", "
 GRAFT_EXTS = {".mp4", ".mov", ".m4v", ".lrv"}
 SKIP_DIRS = {"$recycle.bin", "system volume information", ".tmp.drivedownload", ".tmp.driveupload"}
 
-TIP_AVERAGE = ("How close this video looks to the original, from 0 to 100. VMAF is a score made by Netflix, based on how "
+# English; shown through tr()
+TIP_AVERAGE = N_("How close this video looks to the original, from 0 to 100. VMAF is a score made by Netflix, based on how "
                "people see video. At 95 or above, most people can't see a difference.")
-TIP_WORST = ("The score of the worst moments: 1% of the video's frames score lower than this. It catches a short bad "
-             "patch that a good average would hide. The target is {p1:g} or above.")
+TIP_WORST = N_("The score of the worst moments: 1% of the video's frames score lower than this. It catches a short bad "
+             "patch that a good average would hide. The target is {p1} or above.")
 
-QUALITY_EXPLANATION = (
+QUALITY_EXPLANATION = N_(
     "Truly lossless H.265, where every pixel stays identical, usually makes files larger than the originals, "
     "so it would cost you space instead of saving it. This tool uses a measured definition instead.\n\n"
     "After each conversion it compares every frame with the original using VMAF, an open measure "

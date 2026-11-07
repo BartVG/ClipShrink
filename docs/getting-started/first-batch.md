@@ -45,7 +45,7 @@ More in [Compare and clean up](../user-guide/compare-and-clean-up.md).
 
 ## Reports
 
-Every batch leaves a CSV report in a folder you can open from **About**. See [Reports](../user-guide/reports.md).
+Every batch leaves a CSV report in a folder you can open from **About**, on the Settings page. See [Reports](../user-guide/reports.md).
 
 ## Next steps
 

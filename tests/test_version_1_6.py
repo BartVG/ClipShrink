@@ -292,16 +292,16 @@ def test_advanced_doc_page_exists():
 
 # --- Sidebar and About
 def test_sidebar_is_settings_then_about_at_the_bottom(win):
-    assert win.sidebar_buttons() == ["Settings", "About"]
+    assert win.sidebar_buttons() == ["Settings"], "About is on the Settings page since 1.7"
     assert not hasattr(win, "reports_btn") and not hasattr(win, "why_btn")
 
 
 def test_about_has_the_docs_link_quality_explanation_and_reports_folder(win):
     from clipshrink import config
     from clipshrink.reports import reports_dir
-    win.about_btn.click()
+    win.settings_btn.click()
     text = win.about_text()
-    assert config.DOCS_URL in win.about_browser.toHtml()
+    assert config.DOCS_URL in win.about_links()
     assert 'What does "no quality loss" mean?' in text
     assert "lossless" in text.lower() and "VMAF" in text
     assert str(reports_dir(win.db_path)) in text

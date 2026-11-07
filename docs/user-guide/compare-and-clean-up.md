@@ -4,7 +4,7 @@ After a batch finishes, step 4 lets you check each conversion against its origin
 
 ![The Compare and clean up page, listing verified conversions with sizes and quality scores](../images/4-compare-and-clean-up.png)
 
-The list shows the videos from the batch you just ran. The columns are: **Delete?**, **Original**, **Folder**, **Before**, **After**, **% Saved**, **VMAF average**, **Worst 1%** and **Result**, plus **Encoding** if you turned it on in [Settings](settings-and-data.md#encoding-column). Click a column title to sort, and drag the edge of a title to resize the column. Hover over **VMAF average** or **Worst 1%** for a short explanation. A big label above the list tells you how much space can be saved once the originals are removed.
+The list shows the videos from the batch you just ran. The columns are: **Delete?**, **Original**, **Folder**, **Before**, **After**, **% Saved**, **VMAF average**, **Worst 1%** and **Result**, plus **Encoding** if you turned it on in [Settings](settings-and-data.md#encoding-column). Click a column title to sort, and drag the edge of a title to resize the column. Hover over **VMAF average** or **Worst 1%** for a short explanation. Right-click a row and choose **Open file location** to open its folder in Explorer, with the file highlighted. Once an original is in the Recycle Bin, this shows its conversion instead. A big label above the list tells you how much space can be saved once the originals are removed.
 
 A "Needs your attention" box lists every file that was kept as the original, failed, or got a warning sign, with the reason. If all went well it says "Every conversion passed." [Warnings and messages](warnings.md) explains each result.
 
@@ -13,11 +13,20 @@ A "Needs your attention" box lists every file that was kept as the original, fai
 1. Click a row in the list.
 2. Click **Play selected side by side**.
 
-The original (H.264) plays on the left and the conversion (H.265 or AV1) on the right, in sync. If the conversion was shrunk, the original is shrunk to match, so the two can sit side by side. The player starts by itself. Press the space bar to pause and resume, whichever button is highlighted. It has **Play/Pause**, **◀ Frame** and **Frame ▶** step buttons, a seek slider and a time label, and it shows the file's VMAF scores.
+The original (H.264) plays on the left and the conversion (H.265 or AV1) on the right, in sync. If the conversion was shrunk, the original is shrunk to match, so the two can sit side by side. The player starts by itself. Press the space bar to pause and resume, whichever button is highlighted. It has **Play/Pause**, **◀ Frame** and **Frame ▶** step buttons, a progress bar and a time label, and it shows the file's VMAF scores. Click anywhere on the progress bar to jump there, or drag its handle.
 
 ![Side by side playback of a snowy mountain view, identical on both sides](../images/side-by-side.jpg)
 
-**Zoom to 100% detail** shows a centre crop of each picture at 1:1, up to 960 by 1080 pixels per side, so you can judge fine detail such as grass, text or water. It is a crop, not the whole frame. Click **Show whole picture** to go back.
+Four buttons choose how much you see:
+
+| Button | What it shows |
+| --- | --- |
+| **Whole picture** | The full frame of both files. This is where the player starts. |
+| **100%** | A window of each picture at 1:1, up to 960 by 1080 pixels per side, so you can judge fine detail such as grass, text or water. |
+| **200%** | A smaller window, with each video pixel shown as a 2 by 2 block. |
+| **400%** | A smaller window still, with each pixel as a 4 by 4 block. Edges look blocky on purpose, so compression blur is easy to spot. |
+
+At 100%, 200% and 400%, drag the picture to look around. Both sides move together, so they always show the same spot. The zoomed view starts in the middle of the picture.
 
 You can only compare a file whose conversion is verified or has a warning sign, and only while both the original and the conversion are still on disk. After you send an original to the Recycle Bin you can no longer play the pair.
 
@@ -31,7 +40,19 @@ Only files that can be safely removed get a tick box: those with the result "Ver
 **Select Recommended**
 :   Ticks only files that cleared the quality target. Anything with a warning sign is left out.
 
-Both buttons toggle: they change to **Deselect All** and **Deselect Recommended** once used. You can also tick rows one by one. See [the quality target](../internals/quality.md) for what "recommended" means.
+Both buttons toggle: they change to **Deselect All** and **Deselect Recommended** once used. See [the quality target](../internals/quality.md) for what "recommended" means.
+
+You can also tick rows yourself, much as you select files in Explorer:
+
+| Action | What it does |
+| --- | --- |
+| Click a tick box | Ticks or unticks that row. |
+| **Ctrl**+click a row | Ticks or unticks that row, and leaves the others alone. |
+| **Shift**+click a row | Ticks every row from the last one you clicked to this one. |
+| **Ctrl+A** | Ticks every row that can be deleted, like **Select All**. |
+| Plain click on a row | Picks the row for **Play selected side by side**. It doesn't change any tick. |
+
+Rows that can't be deleted, which show a dash, are never ticked this way.
 
 ## Send originals to the Recycle Bin
 

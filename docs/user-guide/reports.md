@@ -33,7 +33,7 @@ After, Saved % and Conversion are filled in only for files that were converted.
 %LOCALAPPDATA%\ClipShrink\reports
 ```
 
-The **About** page has a link that opens this folder in Explorer. CSV files open in Excel and most spreadsheet apps. Reports stay on your PC until you delete them yourself.
+The **About** column on the Settings page has a link that opens this folder in Explorer. Reports are written in the app's language at the time. CSV files open in Excel and most spreadsheet apps. Reports stay on your PC until you delete them yourself.
 
 ## The app doesn't read them
 

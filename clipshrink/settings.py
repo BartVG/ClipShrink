@@ -2,12 +2,13 @@
 import json, os
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from . import config
+from . import config, i18n
 
 CHOICES = {
     "hardware": ("gpu", "cpu"),
     "codec": ("h265", "av1"),
     "max_resolution": tuple(config.RESOLUTIONS),
+    "language": tuple(i18n.LANGUAGES),
 }
 
 
@@ -25,6 +26,7 @@ class Settings:
     min_mean: float = 80.0
     min_p1: float = 70.0
     skip_welcome: bool = False
+    language: str = "en"
 
     def policy(self):
         """The defaults apply until the user has unlocked the advanced values."""

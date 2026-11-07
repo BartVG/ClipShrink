@@ -3,10 +3,11 @@ information. The app writes them and never reads them back."""
 import csv, datetime, os
 from pathlib import Path
 from . import config
+from .i18n import N_, reason, tr
 
-COLUMNS = ["Date", "File", "Folder", "Result", "Reason", "Before (bytes)", "After (bytes)", "Saved %",
+COLUMNS = [N_(c) for c in ("Date", "File", "Folder", "Result", "Reason", "Before (bytes)", "After (bytes)", "Saved %",
            "VMAF average", "VMAF worst 1%", "Encoder", "Quality setting", "Conversion", "Codec", "Output resolution",
-           "Output bitrate (Mbit/s)", "Target average", "Target worst 1%"]
+           "Output bitrate (Mbit/s)", "Target average", "Target worst 1%")]
 CONVERTED = ("verified", "below_bar", "original_deleted")
 
 
@@ -27,7 +28,7 @@ def _row(r):
         "File": _safe(Path(r.source).name),
         "Folder": _safe(Path(r.source).parent),
         "Result": config.status_text(r),
-        "Reason": _safe(r.reason),
+        "Reason": _safe(reason(r.reason)),
         "Before (bytes)": r.source_size,
         "After (bytes)": r.output_size if converted else "",
         "Saved %": round((1 - r.output_size / r.source_size) * 100, 1) if converted and r.source_size else "",
@@ -56,8 +57,9 @@ def write_batch_report(folder, records, path=None):
             path, n = folder / f"report_{stamp}_{n}.csv", n + 1
     tmp = Path(str(path) + ".tmp")
     with open(tmp, "w", newline="", encoding="utf-8-sig") as f:
-        w = csv.DictWriter(f, COLUMNS)
-        w.writeheader()
-        w.writerows(_row(r) for r in records)
+        # Written in the app's language at the time. Numbers stay plain, for spreadsheets.
+        w = csv.writer(f)
+        w.writerow([tr(c) for c in COLUMNS])
+        w.writerows([row[c] for c in COLUMNS] for row in map(_row, records))
     os.replace(tmp, path)
     return Path(path)

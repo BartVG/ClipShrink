@@ -14,7 +14,7 @@ Two progress bars show all files and the current file with its stage: "Finding t
 
 Videos are converted one at a time, never in parallel. A file that fails or is kept as original does not stop the rest of the batch.
 
-Drag the edge of a column title to resize it, and hover over **VMAF average** or **Worst 1%** for a short explanation. Columns fit their content until you drag one, and your widths then stay until you click **Start Over**.
+Drag the edge of a column title to resize it, and hover over **VMAF average** or **Worst 1%** for a short explanation. Right-click a row and choose **Open file location** to open its folder in Explorer. Columns fit their content until you drag one, and your widths then stay until you click **Start Over**.
 
 ## If your PC crashes
 

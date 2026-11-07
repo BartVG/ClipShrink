@@ -29,7 +29,7 @@ def click(widget):
 
 
 # --- Leaving a side page by clicking the current step
-@pytest.mark.parametrize("button", ["settings_btn", "about_btn"])
+@pytest.mark.parametrize("button", ["settings_btn"])
 @pytest.mark.parametrize("stage", [0, 3])
 def test_current_step_leaves_a_side_page(window, button, stage):
     window.go(stage)
@@ -41,7 +41,7 @@ def test_current_step_leaves_a_side_page(window, button, stage):
 
 def test_other_steps_do_not_jump(window):
     window.go(2)
-    window.about_btn.click()
+    window.settings_btn.click()
     about = window.stack.currentIndex()
     click(window.steps[0])
     click(window.steps[3])
@@ -71,8 +71,18 @@ class FakePlayer:
     def duration(self):
         return 10.0
 
+    zoom = None
+    centre = (0.5, 0.5)
+    src_width = src_height = 1920
+    conv_width = conv_height = None
+
     def set_detail(self, on):
-        pass
+        self.set_view(1 if on else None)
+
+    def set_view(self, zoom, centre=None):
+        self.zoom = zoom
+        if centre is not None:
+            self.centre = centre
 
     def close(self):
         pass

@@ -2,6 +2,22 @@
 
 Every released version of ClipShrink, newest first. The authoritative file is [CHANGELOG.md on GitHub](https://github.com/tophe323/ClipShrink/blob/main/CHANGELOG.md).
 
+## 1.7 - 2026-11-07
+
+### Added
+- **Seven languages:** English, French, Dutch, German, Spanish, Italian and Portuguese. Choose at the top of Settings; it applies at once, with no restart. English is the default. The installer offers the same languages. Reports are written in the chosen language. The translations haven't yet been checked by native speakers.
+- **Open file location:** right-click a row on any table to open its folder in Explorer, with the file highlighted.
+- **Tick like in Explorer** on Compare and clean up: Ctrl+click ticks one row, Shift+click a range, Ctrl+A everything that can be deleted. A plain click still only picks the row to play.
+- **200% and 400% zoom** in the side by side player, beside 100%, with each pixel shown as a block.
+- **Drag to look around** at 100%, 200% and 400%. Both sides move together.
+
+### Changed
+- **Settings and About share one page**, in two columns. The sidebar now has a single Settings button.
+- **Back to the defaults** sits in the Advanced card, and leaves the language as it is.
+
+### Fixed
+- **Clicking the player's progress bar** now jumps to that point. Before, only dragging the handle worked.
+
 ## 1.6.1 - 2026-11-07
 
 ### Added

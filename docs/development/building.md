@@ -42,7 +42,7 @@ Run it after changing `vendor.lock.json`, then commit `licenses\` and rebuild. N
 
 ## Releasing
 
-The version number is kept by hand in three places: `VERSION` in `clipshrink/config.py` (shown in the window title and the About page), `AppVersion` in `installer\clipshrink.iss`, and the newest entry in [CHANGELOG.md](https://github.com/tophe323/ClipShrink/blob/main/CHANGELOG.md). The repository contains no script that publishes a release. If the bundled builds changed, publish `dist\third-party-source\` and the two pinned builds in a `third-party-<version>` release, with each archive's folder name added to the front of its file name because some names repeat, and update the `mirror` in `tools/vendor.lock.json` and the links in the notices.
+The version number is kept by hand in three places: `VERSION` in `clipshrink/config.py` (shown in the window title and in About, on the Settings page), `AppVersion` in `installer\clipshrink.iss`, and the newest entry in [CHANGELOG.md](https://github.com/tophe323/ClipShrink/blob/main/CHANGELOG.md). The repository contains no script that publishes a release. If the bundled builds changed, publish `dist\third-party-source\` and the two pinned builds in a `third-party-<version>` release, with each archive's folder name added to the front of its file name because some names repeat, and update the `mirror` in `tools/vendor.lock.json` and the links in the notices.
 
 ## Next steps
 

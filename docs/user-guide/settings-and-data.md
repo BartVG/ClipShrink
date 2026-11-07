@@ -2,6 +2,16 @@
 
 Open **Settings** in the sidebar. The defaults suit most people, so you can leave this page alone. Choices are saved at once and remembered, in `settings.json`. They are locked while a batch is running.
 
+The page has two columns: your settings on the left, and **About ClipShrink** on the right. About shows the version, links to this documentation (with buttons to open it or copy the link), to the project and to your reports folder, the licence, the software ClipShrink is built with, and "What does "no quality loss" mean?".
+
+![The Settings page, with the settings on the left and About ClipShrink on the right](../images/6-settings.png)
+
+## Language
+
+**Language** is the first setting. ClipShrink speaks English, Français, Nederlands, Deutsch, Español, Italiano and Português, each listed by its own name. It starts in English, whatever language Windows uses. A new choice applies at once to every page, with no restart, and is remembered. **Back to the defaults** leaves the language as it is.
+
+The reports you get after that are written in the same language. The translations haven't yet been checked by native speakers. If you spot a wrong or awkward word, please [open an issue](https://github.com/tophe323/ClipShrink/issues).
+
 ## Encode with
 
 | Choice | What it does |
@@ -77,7 +87,7 @@ To open the data folder, paste this into the address bar of File Explorer:
 ```
 
 !!! tip
-    The **About** page in the app has a link to the reports folder.
+    The **About** column on the Settings page has a link to the reports folder.
 
 ## Next steps
 

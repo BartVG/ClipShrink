@@ -1,17 +1,22 @@
-"""The desktop interface: four stages, left to right, one obvious button each."""
-import ctypes, html
-import os, sys, threading, time
+"""The desktop interface: four stages, left to right, one obvious button each.
+
+Every text is written in English and passed through tr(). A text that must follow a change
+of language is set with MainWindow.live(), or built by a function given to cell(), so that
+retranslate() can build it again in the new language."""
+import ctypes, html, re
+import os, subprocess, sys, threading, time
 from pathlib import Path
-from PySide6.QtCore import QUrl, QObject, QPointF, QRectF, Qt, QTimer, Signal
-from PySide6.QtGui import QIcon, QDesktopServices, QColor, QKeySequence, QPainter, QPalette, QPen, QShortcut
+from PySide6.QtCore import QEvent, QLibraryInfo, QLocale, QUrl, QObject, QPointF, QRectF, Qt, QTimer, QTranslator, Signal
+from PySide6.QtGui import QIcon, QCursor, QDesktopServices, QColor, QKeySequence, QPainter, QPalette, QPen, QShortcut
 from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox, QScrollArea,
-                               QButtonGroup, QFileDialog, QFrame, QGridLayout, QHBoxLayout, QHeaderView, QLabel, QMainWindow, QMessageBox,
+                               QButtonGroup, QFileDialog, QFrame, QGridLayout, QHBoxLayout, QHeaderView, QLabel, QMainWindow, QMenu, QMessageBox,
                                QProgressBar, QPushButton, QSlider, QStackedWidget, QStyle, QStyledItemDelegate, QStyleOptionViewItem, QTableWidget, QTableWidgetItem,
                                QTextBrowser, QVBoxLayout, QWidget)
-from . import config, db, encode, reports, scan, settings as app_settings, tools, trash
+from . import config, db, encode, i18n, reports, scan, settings as app_settings, tools, trash
 from .encode import Stopped
 from .engine import Converter, forget_everything
 from .estimate import estimate_savings
+from .i18n import N_, g, in_english, ntr, num, reason, tr
 from .player import PlayerError, SideBySidePlayer
 from .scan import original_stem, scan_folder
 
@@ -45,6 +50,8 @@ QPushButton#danger:disabled { background: #e0bdb9; color: white; }
 QPushButton#tab { border: 1px solid transparent; background: transparent; padding: 5px 12px; }
 QPushButton#tab:hover { background: #eef1f4; }
 QPushButton#tab:checked { background: white; border: 1px solid #cdd4db; font-weight: 600; }
+QPushButton#view { padding: 7px 10px; }
+QPushButton#view:checked { background: #dcefe7; border: 1px solid #0b6e4f; font-weight: 600; }
 QTableWidget { background: white; border: 1px solid #e3e7ec; border-radius: 10px; }
 QHeaderView::section { background: white; border: none; border-bottom: 1px solid #e3e7ec; padding: 7px 6px; font-weight: 600; }
 QTableWidget { selection-background-color: #bfe3d4; selection-color: #1f2933; }
@@ -68,6 +75,8 @@ QProgressBar#barBlue::chunk { background: #4a90e2; border-radius: 5px; }
 """
 
 STATUS_TEXT = config.STATUS_TEXT
+ENGLISH_ROLE = Qt.UserRole + 1      # a cell's words in English, which decide a pill's colour
+_qt_translator = None
 
 
 def apply_theme(app):
@@ -85,11 +94,35 @@ def apply_theme(app):
     app.setPalette(pal)
 
 
+def use_language(code):
+    """Switches the app's own words, and Qt's (the Yes and No buttons)."""
+    global _qt_translator
+    code = i18n.set_language(code)
+    app = QApplication.instance()
+    if app is not None:
+        if _qt_translator is not None:
+            app.removeTranslator(_qt_translator)
+            _qt_translator = None
+        if code != "en":
+            t = QTranslator(app)
+            if t.load(f"qtbase_{i18n.QT_NAMES[code]}", QLibraryInfo.path(QLibraryInfo.TranslationsPath)):
+                app.installTranslator(t)
+                _qt_translator = t
+    return code
+
+
+def qt_locale():
+    return QLocale(QLocale.English, QLocale.UnitedStates) if i18n.language() == "en" else QLocale(i18n.QT_NAMES[i18n.language()])
+
+
+UNITS = (N_("bytes"), N_("KB"), N_("MB"), N_("GB"), N_("TB"))
+
+
 def human_size(n):
     n = float(n)
-    for unit in ("bytes", "KB", "MB", "GB", "TB"):
+    for unit in UNITS:
         if abs(n) < 1000 or unit == "TB":
-            return f"{n:.0f} {unit}" if unit == "bytes" else f"{n:.1f} {unit}"
+            return f"{n:.0f} {tr(unit)}" if unit == "bytes" else f"{num(n)} {tr(unit)}"
         n /= 1000
 
 
@@ -97,21 +130,25 @@ def short_time(seconds):
     """For the Time Remaining card: ~3h 32m left."""
     m = max(1, round(seconds / 60))
     if m < 60:
-        return f"~{m}m left"
-    return f"~{m // 60}h {m % 60:02d}m left"
+        return tr("~{m}m left").format(m=m)
+    return tr("~{h}h {m}m left").format(h=m // 60, m=f"{m % 60:02d}")
 
 
 def human_time(seconds):
     s = int(max(0, seconds))
     if s < 60:
-        return "under a minute"
+        return tr("under a minute")
     m = round(s / 60)
     if m < 60:
-        return f"about {m} minute{'s' if m != 1 else ''}"
+        return ntr("about {n} minute", "about {n} minutes", m).format(n=m)
     h, m = divmod(m, 60)
     if h < 48:
-        return f"about {h} h {m:02d} min"
-    return f"about {h / 24:.1f} days"
+        return tr("about {h} h {m} min").format(h=h, m=f"{m:02d}")
+    return tr("about {d} days").format(d=num(h / 24))
+
+
+def clock(t):
+    return f"{int(t) // 60}:{int(t) % 60:02d}"
 
 
 class Bridge(QObject):
@@ -145,7 +182,7 @@ class TickDelegate(QStyledItemDelegate):
 
 
 def pill_colours(text):
-    """Background and text colour of a status pill."""
+    """Background and text colour of a status pill, from its English words."""
     if text.startswith("⚠"):
         return "#fdecc8", "#92400e"
     if text.startswith(("Verified", "Resized", "Ready", "Done", "Original in Recycle")):
@@ -167,7 +204,7 @@ class PillDelegate(QStyledItemDelegate):
         opt.widget.style().drawControl(QStyle.CE_ItemViewItem, opt, painter, opt.widget)
         if not text:
             return
-        back, fore = pill_colours(text)
+        back, fore = pill_colours(index.data(ENGLISH_ROLE) or text)
         metrics = option.fontMetrics
         r = QRectF(option.rect).adjusted(5, 4, -5, -4)
         width = min(r.width(), metrics.horizontalAdvance(text) + 18)
@@ -188,16 +225,46 @@ class PillDelegate(QStyledItemDelegate):
         return hint
 
 
+def open_location(path):
+    """Explorer on the file's folder with the file highlighted, or just the folder if the file has gone."""
+    p = Path(path)
+    if p.is_file():
+        subprocess.Popen(f'explorer /select,"{p}"')
+    elif p.parent.is_dir():
+        os.startfile(str(p.parent))
+
+
+def row_path(t, row):
+    """The full path a table row is about: column 0 keeps it, or its tooltip does."""
+    it = t.item(row, 0)
+    if it is None:
+        return None
+    return it.data(Qt.UserRole) or it.toolTip() or None
+
+
 def toggle_tick(t, row):
     it = t.item(row, 0)
     it.setCheckState(Qt.Unchecked if it.checkState() == Qt.Checked else Qt.Checked)
 
 
 class SortItem(QTableWidgetItem):
-    """Sorts by its real value: 900 MB comes before 1.2 GB, and 9.5 before 93.5."""
-    def __init__(self, text="", key=None):
-        super().__init__(str(text))
+    """Sorts by its real value: 900 MB comes before 1.2 GB, and 9.5 before 93.5.
+    Its text and tooltip can be functions, built again when the language changes."""
+    def __init__(self, text="", key=None, tip=None):
+        self.make = text if callable(text) else None
+        self.make_tip = tip if callable(tip) else None
+        super().__init__(str(text()) if self.make else str(text))
         self.key = key
+        if self.make:
+            self.setData(ENGLISH_ROLE, in_english(self.make))
+        if tip:
+            self.setToolTip(self.make_tip() if self.make_tip else tip)
+
+    def refresh(self):
+        if self.make:
+            self.setText(self.make())
+        if self.make_tip:
+            self.setToolTip(self.make_tip())
 
     def rank(self):
         state = self.data(Qt.CheckStateRole)
@@ -212,9 +279,17 @@ class SortItem(QTableWidgetItem):
         return self.rank() < other.rank() if isinstance(other, SortItem) else super().__lt__(other)
 
 
+def column_key(t, c):
+    """A column's English title, whatever the language."""
+    head = t.horizontalHeaderItem(c)
+    return head.data(Qt.UserRole) or head.text()
+
+
 def table(headers, stretch=0, ticks=False, wide=None, pills=None, right=()):
     t = QTableWidget(0, len(headers))
-    t.setHorizontalHeaderLabels(headers)
+    t.setHorizontalHeaderLabels([tr(h) for h in headers])
+    for c, h in enumerate(headers):
+        t.horizontalHeaderItem(c).setData(Qt.UserRole, h)
     t.verticalHeader().setVisible(False)
     t.setEditTriggers(QAbstractItemView.NoEditTriggers)
     t.setSelectionBehavior(QAbstractItemView.SelectRows)
@@ -251,6 +326,16 @@ def table(headers, stretch=0, ticks=False, wide=None, pills=None, right=()):
     return t
 
 
+def retranslate_table(t):
+    for c in range(t.columnCount()):
+        t.horizontalHeaderItem(c).setText(tr(column_key(t, c)))
+    for r in range(t.rowCount()):
+        for c in range(t.columnCount()):
+            it = t.item(r, c)
+            if isinstance(it, SortItem):
+                it.refresh()
+
+
 MAX_FOLDER_WIDTH = 340
 
 
@@ -261,7 +346,7 @@ def fit_columns(t, force=False):
     t.setProperty("fitting", True)
     t.resizeColumnsToContents()
     for c in range(t.columnCount()):
-        if t.horizontalHeaderItem(c).text() == "Folder" and t.columnWidth(c) > MAX_FOLDER_WIDTH:
+        if column_key(t, c) == "Folder" and t.columnWidth(c) > MAX_FOLDER_WIDTH:
             t.setColumnWidth(c, MAX_FOLDER_WIDTH)      # a long path shouldn't push everything off screen
     t.setProperty("fitting", False)
     if force:
@@ -269,12 +354,20 @@ def fit_columns(t, force=False):
 
 
 def cell(text="", tip=None, key=None):
-    it = SortItem(text, key)
+    """A table cell. text and tip are plain words, or functions that build them in the current language."""
+    it = SortItem(text, key, tip)
     if isinstance(key, (int, float)):
         it.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
-    if tip:
-        it.setToolTip(tip)
     return it
+
+
+def words(english):
+    """A cell's text in the current language, built again when it changes."""
+    return lambda: tr(english)
+
+
+def size_cell(n):
+    return cell(lambda: human_size(n), key=n)
 
 
 def folder_cell(path):
@@ -295,14 +388,14 @@ def tick_cell(identity, ticked=None):
 
 
 AMBER = QColor("#b45309")
-BELOW_TIP = "Below the quality target. Compare it with the original before removing the original."
+BELOW_TIP = N_("Below the quality target. Compare it with the original before removing the original.")
 
 
 def score_cell(value, minimum):
     if value is None:
         return cell("", key=-1)
     low = value < minimum
-    it = cell(f"⚠ {value:.1f}" if low else f"{value:.1f}", BELOW_TIP if low else None, key=value)
+    it = cell(lambda: f"⚠ {num(value)}" if low else num(value), words(BELOW_TIP) if low else None, key=value)
     if low:
         it.setForeground(AMBER)
     return it
@@ -316,31 +409,42 @@ def details_text(rec):
     if rec.codec in config.CODEC_NAMES:
         bits.append(config.CODEC_NAMES[rec.codec])
     if rec.encoder in config.ENCODER_NAMES:
-        bits.append(config.ENCODER_NAMES[rec.encoder])
+        bits.append(tr(config.ENCODER_NAMES[rec.encoder]))
     if rec.quality is not None:
         bits.append(f"Q{rec.quality:g}")
     if rec.output_width:
         bits.append(f"{rec.output_width}×{rec.output_height}")
     if rec.output_bitrate_mbit:
-        bits.append(f"{rec.output_bitrate_mbit:.1f} Mbit/s")
+        bits.append(f"{num(rec.output_bitrate_mbit)} Mbit/s")
     return ", ".join(bits)
 
 
 def details_cell(rec):
-    return cell(details_text(rec), key=None)
+    return cell(lambda: details_text(rec), key=None)
+
+
+def result_text(rec):
+    renamed = rec.status == "original_deleted" and Path(rec.output).stem.lower() == Path(rec.source).stem.lower()
+    text = tr(STATUS_TEXT["renamed"]) if renamed else config.status_text(rec)
+    if result_is_low(rec) and "⚠" not in text:
+        text = f"⚠ {text}"
+    return text
+
+
+def result_is_low(rec):
+    converted = rec.status in ("verified", "below_bar", "original_deleted")
+    return converted and rec.vmaf_mean is not None and not rec.meets_target
 
 
 def result_cell(rec):
-    renamed = rec.status == "original_deleted" and Path(rec.output).stem.lower() == Path(rec.source).stem.lower()
-    text = STATUS_TEXT["renamed"] if renamed else config.status_text(rec)
-    converted = rec.status in ("verified", "below_bar", "original_deleted")
-    low = converted and rec.vmaf_mean is not None and not rec.meets_target
-    if low and "⚠" not in text:
-        text = f"⚠ {text}"
-    it = cell(text, rec.reason or rec.output)
-    if low:
+    it = cell(lambda: result_text(rec), lambda: reason(rec.reason) or rec.output)
+    if result_is_low(rec):
         it.setForeground(AMBER)
     return it
+
+
+def left_in_place(refused, heading=N_("Left in place:")):
+    return "\n\n" + tr(heading) + "\n" + "\n".join(f"{Path(p).name}: {reason(why)}" for p, why in refused)
 
 
 class StepLabel(QLabel):
@@ -357,37 +461,50 @@ class DeleteDialog(QDialog):
     """Explicit confirmation: a tick box must be ticked before the button works."""
     def __init__(self, parent, text):
         super().__init__(parent)
-        self.setWindowTitle("Send originals to the Recycle Bin?")
+        self.setWindowTitle(tr("Send originals to the Recycle Bin?"))
         self.resize(540, 280)
         v = QVBoxLayout(self)
         lab = QLabel(text)
         lab.setWordWrap(True)
         v.addWidget(lab)
-        self.tick = QCheckBox("I understand. Send these originals to the Recycle Bin.")
+        self.tick = QCheckBox(tr("I understand. Send these originals to the Recycle Bin."))
         v.addWidget(self.tick)
         box = QDialogButtonBox()
-        self.go = box.addButton("Send to Recycle Bin", QDialogButtonBox.AcceptRole)
+        self.go = box.addButton(tr("Send to Recycle Bin"), QDialogButtonBox.AcceptRole)
         self.go.setObjectName("danger")
         self.go.setEnabled(False)
-        box.addButton("Keep them", QDialogButtonBox.RejectRole).setDefault(True)
+        box.addButton(tr("Keep them"), QDialogButtonBox.RejectRole).setDefault(True)
         box.accepted.connect(self.accept)
         box.rejected.connect(self.reject)
         self.tick.toggled.connect(self.go.setEnabled)
         v.addWidget(box)
 
 
+class ClickSlider(QSlider):
+    """A click on the bar jumps there, then works like grabbing the handle."""
+    def mousePressEvent(self, ev):
+        if ev.button() == Qt.LeftButton and self.orientation() == Qt.Horizontal:
+            self.setValue(QStyle.sliderValueFromPosition(self.minimum(), self.maximum(),
+                                                         int(ev.position().x()), max(1, self.width())))
+        super().mousePressEvent(ev)
+
+
+VIEWS = ((None, N_("Whole picture")), (1, "100%"), (2, "200%"), (4, "400%"))
+
+
 class PlayerWindow(QDialog):
+    """Opens over the main window and blocks it, so the language can't change meanwhile."""
     def __init__(self, parent, rec):
         super().__init__(parent)
-        self.setWindowTitle(f"Side by side: {Path(rec.source).name}")
+        self.setWindowTitle(tr("Side by side: {name}").format(name=Path(rec.source).name))
         self.resize(1320, 800)
         self.setWindowFlag(Qt.WindowMaximizeButtonHint, True)
         v = QVBoxLayout(self)
         v.setContentsMargins(0, 0, 0, 8)
         heads = QHBoxLayout()
         codec = config.CODEC_NAMES.get(rec.codec, "H.265")
-        for text in ("Original (H.264), shrunk to match" if rec.resized else "Original (H.264)",
-                     f"Conversion ({codec})"):
+        for text in (tr("Original (H.264), shrunk to match") if rec.resized else tr("Original (H.264)"),
+                     tr("Conversion ({codec})").format(codec=codec)):
             lab = QLabel(text)
             lab.setAlignment(Qt.AlignCenter)
             lab.setStyleSheet("font-weight:600; padding:6px;")
@@ -397,19 +514,31 @@ class PlayerWindow(QDialog):
         self.video.setAttribute(Qt.WA_NativeWindow)
         self.video.setStyleSheet("background:black;")
         v.addWidget(self.video, 1)
-        self.slider = QSlider(Qt.Horizontal)
+        self.slider = ClickSlider(Qt.Horizontal)
         self.slider.setRange(0, 10000)
         row = QHBoxLayout()
         row.setContentsMargins(10, 0, 10, 0)
-        self.play_btn = QPushButton("Play")
-        self.back_btn = QPushButton("◀ Frame")
-        self.next_btn = QPushButton("Frame ▶")
-        self.detail_btn = QPushButton("Zoom to 100% detail")
-        self.detail_btn.setCheckable(True)
+        self.play_btn = QPushButton(tr("Play"))
+        self.back_btn = QPushButton(tr("◀ Frame"))
+        self.next_btn = QPushButton(tr("Frame ▶"))
+        self.view_btns = {}
+        views = QButtonGroup(self)
+        for zoom, text in VIEWS:
+            b = QPushButton(tr(text))
+            b.setObjectName("view")
+            b.setCheckable(True)
+            b.clicked.connect(lambda _, z=zoom: self.set_view(z))
+            views.addButton(b)
+            self.view_btns[zoom] = b
+        self.view_btns[None].setChecked(True)
+        self.detail_btn = self.view_btns[1]
+        self.drag_hint = QLabel(tr("Drag the picture to look around"))
+        self.drag_hint.setObjectName("hint")
+        self.drag_hint.hide()
         self.time_lab = QLabel("0:00 / 0:00")
-        self.score = QLabel(f"VMAF average {rec.vmaf_mean:.1f}, worst 1% {rec.vmaf_p1:.1f}")
+        self.score = QLabel(tr("VMAF average {mean}, worst 1% {p1}").format(mean=num(rec.vmaf_mean), p1=num(rec.vmaf_p1)))
         self.score.setObjectName("hint")
-        for w in (self.play_btn, self.back_btn, self.next_btn, self.detail_btn, self.time_lab):
+        for w in (self.play_btn, self.back_btn, self.next_btn, *self.view_btns.values(), self.drag_hint, self.time_lab):
             row.addWidget(w)
         row.addStretch(1)
         row.addWidget(self.score)
@@ -426,12 +555,20 @@ class PlayerWindow(QDialog):
         self.space = QShortcut(QKeySequence(Qt.Key_Space), self, self.toggle)
         self.back_btn.clicked.connect(lambda: self.do(lambda: self.player.step(False)))
         self.next_btn.clicked.connect(lambda: self.do(lambda: self.player.step(True)))
-        self.detail_btn.toggled.connect(self.toggle_detail)
+        # mpv's own window gets the mouse, so a drag is followed by watching the button and the cursor.
+        self.drag = None
+        self.was_down = False
+        self.drag_timer = QTimer(self)
+        self.drag_timer.setInterval(30)
+        self.drag_timer.timeout.connect(self.poll_drag)
+        self.drag_timer.start()
         self.slider.sliderPressed.connect(lambda: setattr(self, "dragging", True))
         self.slider.sliderReleased.connect(self.seek_released)
         QTimer.singleShot(50, self.begin)
 
     def begin(self):
+        if self.player is not None or not self.isVisible():     # already playing, or closed before it started
+            return
         try:
             self.player = SideBySidePlayer(self.rec.source, self.rec.output, wid=int(self.video.winId()))
             self.player.start()
@@ -439,7 +576,7 @@ class PlayerWindow(QDialog):
             self.timer.start()
             self.tick()
         except PlayerError as ex:
-            QMessageBox.warning(self, "Could not play", str(ex))
+            QMessageBox.warning(self, tr("Could not play"), str(ex))
 
     def do(self, fn):
         if not self.player:
@@ -448,7 +585,7 @@ class PlayerWindow(QDialog):
             fn()
         except (PlayerError, OSError) as ex:
             self.timer.stop()
-            QMessageBox.warning(self, "Player", str(ex))
+            QMessageBox.warning(self, tr("Player"), str(ex))
 
     def toggle(self):
         def fn():
@@ -459,9 +596,48 @@ class PlayerWindow(QDialog):
         self.do(fn)
         self.tick()
 
-    def toggle_detail(self, on):
-        self.detail_btn.setText("Show whole picture" if on else "Zoom to 100% detail")
-        self.do(lambda: self.player.set_detail(on))
+    def set_view(self, zoom):
+        self.view_btns[zoom].setChecked(True)
+        self.drag_hint.setVisible(zoom is not None)
+        self.drag = None
+        self.do(lambda: self.player.set_view(zoom))
+
+    @staticmethod
+    def mouse_state():
+        """Whether the main mouse button is down, and where the cursor is."""
+        user32 = ctypes.windll.user32
+        button = 0x02 if user32.GetSystemMetrics(23) else 0x01      # buttons swapped for left-handed use
+        return bool(user32.GetAsyncKeyState(button) & 0x8000), QCursor.pos()
+
+    def video_rect(self):
+        return QRectF(QPointF(self.video.mapToGlobal(self.video.rect().topLeft())), self.video.size().toSizeF())
+
+    def poll_drag(self):
+        p = self.player
+        if not p or not getattr(p, "zoom", None):
+            self.drag, self.was_down = None, False
+            return
+        down, pos = self.mouse_state()
+        if self.drag is None:
+            if down and not self.was_down and self.isActiveWindow() and self.video_rect().contains(QPointF(pos)):
+                self.drag = (pos, p.centre, pos)
+            self.was_down = down
+            return
+        start, centre, last = self.drag
+        if pos != last:
+            self.drag = (start, centre, pos)
+            self.do(lambda: p.set_view(p.zoom, self.dragged_centre(start, centre, pos)))
+        if not down:
+            self.drag, self.was_down = None, False
+
+    def dragged_centre(self, start, centre, pos):
+        """Moving the mouse right moves the picture right, so the view's centre moves left."""
+        p = self.player
+        w, h = p.conv_width or p.src_width, p.conv_height or p.src_height
+        cw, ch, _, _ = p.window()
+        z = p.zoom
+        scale = min(self.video.width() / (2 * cw * z), self.video.height() / (ch * z)) * z   # screen px per video px
+        return (centre[0] - (pos.x() - start.x()) / scale / w, centre[1] - (pos.y() - start.y()) / scale / h)
 
     def seek_released(self):
         self.dragging = False
@@ -472,17 +648,17 @@ class PlayerWindow(QDialog):
             return
         try:
             pos, dur = self.player.position() or 0, self.player.duration() or 0
-            self.play_btn.setText("Play" if self.player.is_paused() else "Pause")
+            self.play_btn.setText(tr("Play") if self.player.is_paused() else tr("Pause"))
         except (PlayerError, OSError):
             self.timer.stop()
             return
         if dur and not self.dragging:
             self.slider.setValue(int(pos / dur * 10000))
-        f = lambda t: f"{int(t) // 60}:{int(t) % 60:02d}"
-        self.time_lab.setText(f"{f(pos)} / {f(dur)}")
+        self.time_lab.setText(f"{clock(pos)} / {clock(dur)}")
 
     def closeEvent(self, ev):
         self.timer.stop()
+        self.drag_timer.stop()
         if self.player:
             self.player.close()
             self.player = None
@@ -492,6 +668,21 @@ class PlayerWindow(QDialog):
         self.close()
 
 
+STEPS = (N_("Find videos"), N_("See the saving"), N_("Convert"), N_("Compare and clean up"))
+CARDS = (N_("Files Processed"), N_("Space Saved"), N_("Current Batch"), N_("Time Remaining"))
+TABS = (N_("All"), N_("Completed"), N_("Active"), N_("Waiting"))
+STAGES = {"search": N_("Finding the right quality"), "encode": N_("Encoding"), "verify": N_("Measuring every frame"),
+          "done": N_("Done")}
+SHORT_STAGES = {"search": N_("Finding quality"), "encode": N_("Encoding"), "verify": N_("Measuring")}
+WELCOME = (
+    ("🎯", N_("Zero guesswork"), N_("No bitrates or codecs to configure. ClipShrink automatically finds the right "
+                                    "compression balance for every video.")),
+    ("👁️", N_("Measured frame-by-frame"), N_("Every result is scored against the original using Netflix's VMAF visual "
+                                             "quality metric, and any clip that misses the target is clearly flagged.")),
+    ("🛡️", N_("You stay in control"), N_("Conversions are saved as new files alongside your originals. Compare both "
+                                         "versions side by side before deciding what to send to the Recycle Bin.")))
+
+
 class MainWindow(QMainWindow):
     def __init__(self, db_path=None, work_dir=None):
         super().__init__()
@@ -499,6 +690,9 @@ class MainWindow(QMainWindow):
         self.db_path = Path(db_path) if db_path else base / "state.db"
         self.work_dir = Path(work_dir) if work_dir else base / "work"
         self.settings = app_settings.load(self.db_path)
+        use_language(self.settings.language)
+        self._live = {}
+        self._combos = []
         self._syncing = False
         self.conv_count = None
         self._closing = False
@@ -513,7 +707,8 @@ class MainWindow(QMainWindow):
         self.busy = False
         self.bridge = Bridge()
         self.bridge.call.connect(lambda fn: fn())
-        self.setWindowTitle(f"{config.APP_NAME} {config.VERSION}: shrink videos, keep the quality")
+        self.live(self, lambda: tr("{app} {version}: shrink videos, keep the quality").format(
+            app=config.APP_NAME, version=config.VERSION), "setWindowTitle")
         self.setWindowIcon(QIcon(tools.icon_path()))
         self.resize(1320, 800)
         self.setStyleSheet(STYLE)
@@ -532,31 +727,31 @@ class MainWindow(QMainWindow):
         rv.addWidget(name)
         self.steps = []
         self.step_checks = []
-        for n, t in enumerate(("1  Find videos", "2  See the saving", "3  Convert", "4  Compare and clean up")):
-            lab = StepLabel(t)
+        for n, t in enumerate(STEPS):
+            lab = StepLabel()
+            lab.setWordWrap(True)       # "Vergleichen und aufräumen" needs two lines
+            self.live(lab, lambda n=n, t=t: f"{n + 1}  {tr(t)}")
             lab.clicked.connect(lambda n=n: self._step_clicked(n))
             lab.setObjectName("stepOff")
-            row = QHBoxLayout(lab)
-            row.setContentsMargins(0, 0, 12, 0)
-            row.addStretch(1)
+            # The tick sits beside the step, so a long name never runs under it.
+            row = QHBoxLayout()
+            row.setSpacing(2)
+            row.addWidget(lab, 1)
             check = QLabel("✓")
             check.setObjectName("stepCheck")
+            check.setFixedWidth(16)
             check.hide()
             row.addWidget(check)
-            rv.addWidget(lab)
+            rv.addLayout(row)
             self.steps.append(lab)
             self.step_checks.append(check)
         rv.addStretch(1)
         side = ("QPushButton { color:#cfd8e0; background:transparent; border:1px solid #52606d; text-align:left; }"
                 "QPushButton:hover { background:#3a4a5a; }")
-        self.settings_btn = QPushButton("Settings")
+        self.settings_btn = self.live(QPushButton(), N_("Settings"))
         self.settings_btn.setStyleSheet(side)
-        self.settings_btn.clicked.connect(lambda: self.go(5))
+        self.settings_btn.clicked.connect(lambda: self.go(4))
         rv.addWidget(self.settings_btn)
-        self.about_btn = QPushButton("About")
-        self.about_btn.setStyleSheet(side)
-        self.about_btn.clicked.connect(lambda: self.go(4))
-        rv.addWidget(self.about_btn)
         lay.addWidget(rail)
         self.stack = QStackedWidget()
         lay.addWidget(self.stack, 1)
@@ -565,22 +760,64 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self._page_estimate())
         self.stack.addWidget(self._page_convert())
         self.stack.addWidget(self._page_review())
-        self.about_page = self._page_about()
-        self.stack.addWidget(self.about_page)
         self.welcome_page = self._page_welcome()
-        self.settings_page = self._page_settings()
+        self.settings_page = self.about_page = self._page_settings()     # Settings and About share a page
         self.stack.addWidget(self.settings_page)
         self.stack.addWidget(self.welcome_page)
+        for t in (self.scan_table, self.est_table, self.conv_table, self.review):
+            t.setContextMenuPolicy(Qt.CustomContextMenu)
+            t.customContextMenuRequested.connect(lambda pos, t=t: self._table_menu(t, pos))
+        self.review.installEventFilter(self)
+        self._tick_anchor = None
         self._apply_settings_view()
         self.go(0)
         # A waiting batch goes straight to its "Continue where you left off?" question.
         if not self.settings.skip_welcome and not self._unfinished():
-            self.go(6)
+            self.go(5)
         QTimer.singleShot(200, self._offer_resume)
+
+    # --- language ---------------------------------------------------------
+    def live(self, widget, text, setter="setText"):
+        """Shows text now, and again in the new language whenever it changes. text is English,
+        or a function that builds the words in the current language."""
+        make = text if callable(text) else (lambda: tr(text))
+        self._live[(id(widget), setter)] = (widget, setter, make)
+        getattr(widget, setter)(make())
+        return widget
+
+    def set_language(self, code):
+        """Switches every word on screen at once. Nothing else changes."""
+        code = use_language(code)
+        if self.settings.language != code:
+            self.settings.language = code
+            app_settings.save(self.db_path, self.settings)
+        self.language_box.blockSignals(True)
+        self.language_box.setCurrentIndex(self.language_box.findData(code))
+        self.language_box.blockSignals(False)
+        self.retranslate()
+
+    def retranslate(self):
+        for widget, setter, make in list(self._live.values()):
+            getattr(widget, setter)(make())
+        for box, items in self._combos:
+            for i, (text, _) in enumerate(items):
+                box.setItemText(i, tr(text))
+        for box in (self.warn_mean_box, self.warn_p1_box, self.min_mean_box, self.min_p1_box):
+            box.setLocale(qt_locale())
+            box.lineEdit().setText(box.textFromValue(box.value()))     # redraws 95.0 as 95,0
+        for t in (self.scan_table, self.est_table, self.conv_table, self.review):
+            sorting = t.isSortingEnabled()
+            t.setSortingEnabled(False)
+            retranslate_table(t)
+            t.setSortingEnabled(sorting)
+            fit_columns(t)
+        self._apply_settings_view()
+        self._refresh_conv_summary()
+        self._tick_changed()
 
     # --- plain facts other code and the check rely on ---------------------
     def quality_explanation(self):
-        return config.QUALITY_EXPLANATION
+        return tr(config.QUALITY_EXPLANATION)
 
     def can_estimate(self):
         return bool(self.result and self.selected_files())
@@ -589,19 +826,26 @@ class MainWindow(QMainWindow):
         return self.estimate is not None and not self.busy
 
     def sidebar_buttons(self):
-        return [b.text().replace("&&", "&") for b in (self.settings_btn, self.about_btn)]
+        return [self.settings_btn.text().replace("&&", "&")]
 
     def delete_confirmation_text(self, count, bytes_total, below_bar=0, resized=0):
-        text = (f"{count} original{'s' if count != 1 else ''} ({human_size(bytes_total)}) will go to the "
-                f"Windows Recycle Bin. Each conversion is re-checked first, and you can restore "
-                f"originals from the Recycle Bin.")
+        text = ntr("{n} original ({size}) will go to the Windows Recycle Bin. Each conversion is re-checked first, "
+                   "and you can restore originals from the Recycle Bin.",
+                   "{n} originals ({size}) will go to the Windows Recycle Bin. Each conversion is re-checked first, "
+                   "and you can restore originals from the Recycle Bin.", count).format(n=count, size=human_size(bytes_total))
         if below_bar:
-            text += (f"\n\n⚠ {below_bar} of these {'have' if below_bar != 1 else 'has'} a conversion below the "
-                     f"recommended quality (VMAF average {config.VMAF_MEAN_MIN:.0f}, worst 1% {config.VMAF_P1_MIN:.0f}). "
-                     "Once the original is gone from the Recycle Bin, that lost quality can't be recovered.")
+            text += "\n\n" + ntr(
+                "⚠ {n} of these has a conversion below the recommended quality (VMAF average {mean}, worst 1% {p1}). "
+                "Once the original is gone from the Recycle Bin, that lost quality can't be recovered.",
+                "⚠ {n} of these have a conversion below the recommended quality (VMAF average {mean}, worst 1% {p1}). "
+                "Once the original is gone from the Recycle Bin, that lost quality can't be recovered.",
+                below_bar).format(n=below_bar, mean=f"{config.VMAF_MEAN_MIN:.0f}", p1=f"{config.VMAF_P1_MIN:.0f}")
         if resized:
-            text += (f"\n\n⚠ {resized} of these {'have' if resized != 1 else 'has'} a conversion at a lower "
-                     "resolution. Once the original is gone from the Recycle Bin, that detail is gone for good.")
+            text += "\n\n" + ntr(
+                "⚠ {n} of these has a conversion at a lower resolution. Once the original is gone from the Recycle "
+                "Bin, that detail is gone for good.",
+                "⚠ {n} of these have a conversion at a lower resolution. Once the original is gone from the Recycle "
+                "Bin, that detail is gone for good.", resized).format(n=resized)
         return text
 
     # --- layout helpers ---------------------------------------------------
@@ -616,7 +860,7 @@ class MainWindow(QMainWindow):
                 self.step_checks[n].setVisible(n < i)
         if i == 3:
             self.refresh_review()
-        if i == 5:
+        if i == 4:
             self._refresh_settings_page()
         for n, lab in enumerate(self.steps):
             lab.setCursor(Qt.PointingHandCursor if i >= 4 and n == self.stage else Qt.ArrowCursor)
@@ -631,26 +875,33 @@ class MainWindow(QMainWindow):
         v = QVBoxLayout(p)
         v.setContentsMargins(24, 20, 24, 20)
         v.setSpacing(10)
-        t = QLabel(title)
+        t = self.live(QLabel(), title)
         t.setObjectName("title")
         v.addWidget(t)
-        h = QLabel(hint)
+        h = QLabel()
+        if hint:
+            self.live(h, hint)
         h.setObjectName("hint")
         h.setWordWrap(True)
         h.setVisible(bool(hint))
         v.addWidget(h)
         return p, v
 
+    def _button(self, text, name=None):
+        b = self.live(QPushButton(), text)
+        if name:
+            b.setObjectName(name)
+        return b
+
     # --- stage 1 ----------------------------------------------------------
     def _page_scan(self):
-        p, v = self._page("Find your videos",
-                          "Pick a folder. This tool looks through it and every folder inside it, and lists the "
-                          "H.264 videos it can shrink. Nothing is changed yet.")
+        p, v = self._page(N_("Find your videos"),
+                          N_("Pick a folder. This tool looks through it and every folder inside it, and lists the "
+                             "H.264 videos it can shrink. Nothing is changed yet."))
         row = QHBoxLayout()
-        self.pick_btn = QPushButton("Choose folder…")
-        self.pick_btn.setObjectName("primary")
+        self.pick_btn = self._button(N_("Choose folder…"), "primary")
         self.pick_btn.clicked.connect(self.choose_folder)
-        self.folder_lab = QLabel("No folder chosen")
+        self.folder_lab = self.live(QLabel(), N_("No folder chosen"))
         self.folder_lab.setObjectName("hint")
         row.addWidget(self.pick_btn)
         row.addWidget(self.folder_lab, 1)
@@ -658,7 +909,8 @@ class MainWindow(QMainWindow):
         self.scan_bar = QProgressBar()
         self.scan_bar.hide()
         v.addWidget(self.scan_bar)
-        self.scan_table = table(["Convert", "File", "Folder", "Size", "Picture", "Length", "State"], 6, ticks=True, wide=2, pills=6, right=(3, 4, 5))
+        self.scan_table = table([N_("Convert"), N_("File"), N_("Folder"), N_("Size"), N_("Picture"), N_("Length"),
+                                 N_("State")], 6, ticks=True, wide=2, pills=6, right=(3, 4, 5))
         self.scan_table.itemChanged.connect(self._selection_changed)
         self.scan_table.cellClicked.connect(self._scan_cell_clicked)
         v.addWidget(self.scan_table, 1)
@@ -667,8 +919,7 @@ class MainWindow(QMainWindow):
         v.addWidget(self.scan_note)
         row = QHBoxLayout()
         row.addStretch(1)
-        self.to_estimate = QPushButton("Next: see the saving  →")
-        self.to_estimate.setObjectName("next")
+        self.to_estimate = self._button(N_("Next: see the saving  →"), "next")
         self.to_estimate.setEnabled(False)
         self.to_estimate.clicked.connect(lambda: self.go(1))
         row.addWidget(self.to_estimate)
@@ -676,13 +927,13 @@ class MainWindow(QMainWindow):
         return p
 
     def choose_folder(self):
-        d = QFileDialog.getExistingDirectory(self, "Choose the folder with your videos")
+        d = QFileDialog.getExistingDirectory(self, tr("Choose the folder with your videos"))
         if d:
             self.start_scan(d)
 
     def start_scan(self, folder):
         self.folder = str(Path(folder))
-        self.folder_lab.setText(self.folder)
+        self.live(self.folder_lab, lambda f=self.folder: f)
         self.scan_table.setRowCount(0)
         self.result = None
         self.estimate = None
@@ -691,7 +942,7 @@ class MainWindow(QMainWindow):
         self.pick_btn.setEnabled(False)
         self.scan_bar.setRange(0, 0)
         self.scan_bar.show()
-        self.scan_note.setText("Reading your videos…")
+        self.live(self.scan_note, N_("Reading your videos…"))
 
         def work():
             def tick(i, n, _):
@@ -714,15 +965,19 @@ class MainWindow(QMainWindow):
         if not safe:
             return
         total = sum(os.path.getsize(p) for p in safe if os.path.exists(p))
-        s = "s" if len(safe) != 1 else ""
-        text = (f"Found {len(safe)} GoPro LRV file{s} ({human_size(total)}).\n\n"
-                "An LRV file is a small, low-resolution copy that a GoPro records alongside each video, so the camera "
-                "and its phone app can show quick previews. You don't need it if you have the original video, which "
-                f"is beside each of these.\n\nSend {'them' if len(safe) != 1 else 'it'} to the Recycle Bin?")
+        n = len(safe)
+        text = (ntr("Found {n} GoPro LRV file ({size}).", "Found {n} GoPro LRV files ({size}).", n).format(
+                    n=n, size=human_size(total)) + "\n\n" +
+                tr("An LRV file is a small, low-resolution copy that a GoPro records alongside each video, so the camera "
+                   "and its phone app can show quick previews. You don't need it if you have the original video, which "
+                   "is beside each of these.") + "\n\n" +
+                ntr("Send it to the Recycle Bin?", "Send them to the Recycle Bin?", n))
         if len(found) > len(safe):
-            n = len(found) - len(safe)
-            text += f"\n\n{n} other LRV file{'s' if n != 1 else ''} will stay, because the original video isn't beside {'them' if n != 1 else 'it'}."
-        ans = QMessageBox.question(self, "Delete GoPro LRV files?", text,
+            other = len(found) - len(safe)
+            text += "\n\n" + ntr("{n} other LRV file will stay, because the original video isn't beside it.",
+                                 "{n} other LRV files will stay, because the original video isn't beside them.",
+                                 other).format(n=other)
+        ans = QMessageBox.question(self, tr("Delete GoPro LRV files?"), text,
                                    QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if ans == QMessageBox.Yes:
             self._recycle_previews(safe)
@@ -748,10 +1003,31 @@ class MainWindow(QMainWindow):
         r.other = [f for f in r.other if f.path not in gone]
         r.unreadable = [u for u in r.unreadable if u[0] not in gone]
         self._show_scan(r)
-        text = f"{len(res.deleted)} LRV file{'s' if len(res.deleted) != 1 else ''} moved to the Recycle Bin."
+        n = len(res.deleted)
+        text = ntr("{n} LRV file moved to the Recycle Bin.", "{n} LRV files moved to the Recycle Bin.", n).format(n=n)
         if res.refused:
-            text += "\n\nLeft in place:\n" + "\n".join(f"{Path(p).name}: {why}" for p, why in res.refused)
-        QMessageBox.information(self, "Done", text)
+            text += left_in_place(res.refused)
+        QMessageBox.information(self, tr("Done"), text)
+
+    @staticmethod
+    def scan_note_text(res):
+        n = len(res.h264)
+        parts = [ntr("{n} H.264 video, {size}.", "{n} H.264 videos, {size}.", n).format(
+            n=n, size=human_size(sum(f.size for f in res.h264)))]
+        n265 = sum(1 for f in res.other if f.codec == "hevc")
+        if n265:
+            parts.append(ntr("{n} video already in H.265, skipped.", "{n} videos already in H.265, skipped.",
+                             n265).format(n=n265))
+        if len(res.other) > n265:
+            n = len(res.other) - n265
+            parts.append(ntr("{n} video in another format, skipped.", "{n} videos in another format, skipped.",
+                             n).format(n=n))
+        if res.unreadable:
+            names = ", ".join(Path(p).name for p, _ in res.unreadable[:3]) + ("…" if len(res.unreadable) > 3 else "")
+            parts.append(tr("{n} could not be read and were skipped: {names}.").format(n=len(res.unreadable), names=names))
+        if not res.h264:
+            parts = [tr("No H.264 videos found in this folder or its subfolders.") + " " + " ".join(parts[1:])]
+        return " ".join(parts)
 
     def _show_scan(self, res):
         self.result = res
@@ -764,15 +1040,15 @@ class MainWindow(QMainWindow):
         for i, f in enumerate(res.h264):
             rec = known.get(f.path.lower())
             ext = Path(f.path).suffix.lower()
-            state = config.status_text(rec) if rec and rec.source_size == f.size else "Ready"
+            state = (lambda rec=rec: config.status_text(rec)) if rec and rec.source_size == f.size else words("Ready")
             done = rec is not None and rec.status in ("verified", "below_bar") and rec.source_size == f.size
             beside = res.has_conversion.get(f.path)
             if beside and not done:
-                state, done = "Already has a conversion", True
-            vals = [cell(Path(f.path).name, f.path), folder_cell(f.path), cell(human_size(f.size), key=f.size),
+                state, done = words("Already has a conversion"), True
+            vals = [cell(Path(f.path).name, f.path), folder_cell(f.path), size_cell(f.size),
                     cell(f"{f.width}×{f.height} {f.fps:.0f} fps", key=f.width * f.height),
-                    cell(f"{int(f.duration) // 60}:{int(f.duration) % 60:02d}", key=f.duration),
-                    cell("GoPro low-res preview, off by default" if ext == ".lrv" else state, beside)]
+                    cell(clock(f.duration), key=f.duration),
+                    cell(words("GoPro low-res preview, off by default") if ext == ".lrv" else state, beside)]
             self.scan_table.setItem(i, 0, tick_cell(f.path, not (done or ext == ".lrv")))
             for c, it in enumerate(vals, 1):
                 self.scan_table.setItem(i, c, it)
@@ -780,10 +1056,12 @@ class MainWindow(QMainWindow):
         grey = QColor("#7b8794")
         for i, f in enumerate(res.other, len(res.h264)):
             name = "H.265" if f.codec == "hevc" else f.codec.upper()
-            state = f"Already {name}, skipped" + (" (converted by this tool)" if original_stem(f.path) else "")
-            vals = [cell(Path(f.path).name, f.path), folder_cell(f.path), cell(human_size(f.size), key=f.size),
+            mine = bool(original_stem(f.path))
+            state = (lambda name=name, mine=mine: tr("Already {codec}, skipped").format(codec=name)
+                     + (" " + tr("(converted by this tool)") if mine else ""))
+            vals = [cell(Path(f.path).name, f.path), folder_cell(f.path), size_cell(f.size),
                     cell(f"{f.width}×{f.height} {f.fps:.0f} fps", key=f.width * f.height),
-                    cell(f"{int(f.duration) // 60}:{int(f.duration) % 60:02d}", key=f.duration), cell(state, f.path)]
+                    cell(clock(f.duration), key=f.duration), cell(state, f.path)]
             box = tick_cell(f.path)
             box.setForeground(grey)
             self.scan_table.setItem(i, 0, box)
@@ -793,21 +1071,7 @@ class MainWindow(QMainWindow):
         self.scan_table.setSortingEnabled(True)
         self.scan_table.blockSignals(False)
         fit_columns(self.scan_table)
-        parts = [f"{len(res.h264)} H.264 video{'s' if len(res.h264) != 1 else ''}, "
-                 f"{human_size(sum(f.size for f in res.h264))}."]
-        n265 = sum(1 for f in res.other if f.codec == "hevc")
-        if n265:
-            parts.append(f"{n265} video{'s' if n265 != 1 else ''} already in H.265, skipped.")
-        if len(res.other) > n265:
-            n = len(res.other) - n265
-            parts.append(f"{n} video{'s' if n != 1 else ''} in another format, skipped.")
-        if res.unreadable:
-            names = ", ".join(Path(p).name for p, _ in res.unreadable[:3])
-            parts.append(f"{len(res.unreadable)} could not be read and were skipped: {names}"
-                         f"{'…' if len(res.unreadable) > 3 else ''}.")
-        if not res.h264:
-            parts = [f"No H.264 videos found in this folder or its subfolders. {' '.join(parts[1:])}"]
-        self.scan_note.setText(" ".join(parts))
+        self.live(self.scan_note, lambda: self.scan_note_text(res))
         self._selection_changed()
 
     def _scan_cell_clicked(self, row, col):
@@ -835,16 +1099,15 @@ class MainWindow(QMainWindow):
 
     # --- stage 2 ----------------------------------------------------------
     def _page_estimate(self):
-        p, v = self._page("See the saving before anything converts",
-                          "This makes short test encodes from a few of your own files and measures them. Your files "
-                          "are only read, and nothing appears in your folders.")
+        p, v = self._page(N_("See the saving before anything converts"),
+                          N_("This makes short test encodes from a few of your own files and measures them. Your files "
+                             "are only read, and nothing appears in your folders."))
         row = QHBoxLayout()
         self.est_using = QLabel("")
         self.est_using.setObjectName("hint")
         row.addWidget(self.est_using)
         row.addStretch(1)
-        self.est_btn = QPushButton("Run the test encodes")
-        self.est_btn.setObjectName("primary")
+        self.est_btn = self._button(N_("Run the test encodes"), "primary")
         self.est_btn.clicked.connect(self.start_estimate)
         row.addWidget(self.est_btn)
         v.addLayout(row)
@@ -854,37 +1117,39 @@ class MainWindow(QMainWindow):
         card = QFrame()
         card.setObjectName("card")
         cv = QVBoxLayout(card)
-        self.est_big = QLabel("Not measured yet")
+        self.est_big = QLabel()
         self.est_big.setObjectName("big")
-        self.est_detail = QLabel("Click \"Run the test encodes\" to measure how much space you would save.")
+        self.est_detail = QLabel()
         self.est_detail.setWordWrap(True)
         cv.addWidget(self.est_big)
         cv.addWidget(self.est_detail)
         v.addWidget(card)
-        self.est_table = table(["Sample from", "Folder", "At", "Original", "H.265", "VMAF average", "VMAF worst 1%", "Meets the quality target?"], 1, right=(2, 3, 4, 5, 6))
+        self.est_table = table([N_("Sample from"), N_("Folder"), N_("At"), N_("Original"), "H.265", N_("VMAF average"),
+                                N_("VMAF worst 1%"), N_("Meets the quality target?")], 1, right=(2, 3, 4, 5, 6))
         v.addWidget(self.est_table, 1)
         self.est_target_note = QLabel("")
         self.est_target_note.setObjectName("hint")
         self.est_target_note.setWordWrap(True)
         v.addWidget(self.est_target_note)
         row = QHBoxLayout()
-        back = QPushButton("←  Back")
+        back = self._button(N_("←  Back"))
         back.clicked.connect(lambda: self.go(0))
         row.addWidget(back)
         row.addStretch(1)
-        self.to_convert = QPushButton("Start converting  →")
-        self.to_convert.setObjectName("next")
+        self.to_convert = self._button(N_("Start converting  →"), "next")
         self.to_convert.setEnabled(False)
         self.to_convert.clicked.connect(self._start_converting)
         row.addWidget(self.to_convert)
         v.addLayout(row)
+        self.live(self.est_big, N_("Not measured yet"))
+        self.live(self.est_detail, N_("Click \"Run the test encodes\" to measure how much space you would save."))
         return p
 
     def _reset_estimate_view(self):
         if not hasattr(self, "est_big"):
             return
-        self.est_big.setText("Not measured yet")
-        self.est_detail.setText("Click \"Run the test encodes\" to measure how much space you would save.")
+        self.live(self.est_big, N_("Not measured yet"))
+        self.live(self.est_detail, N_("Click \"Run the test encodes\" to measure how much space you would save."))
         self.est_table.setRowCount(0)
         self.to_convert.setEnabled(False)
 
@@ -896,8 +1161,8 @@ class MainWindow(QMainWindow):
         self.est_btn.setEnabled(False)
         self.est_bar.setRange(0, 0)
         self.est_bar.show()
-        self.est_big.setText("Measuring…")
-        self.est_detail.setText("Encoding samples of your files and comparing them with the originals.")
+        self.live(self.est_big, N_("Measuring…"))
+        self.live(self.est_detail, N_("Encoding samples of your files and comparing them with the originals."))
         chosen = self.settings
 
         def work():
@@ -918,8 +1183,20 @@ class MainWindow(QMainWindow):
         self.busy = False
         self.est_bar.hide()
         self.est_btn.setEnabled(True)
-        self.est_big.setText("Could not measure")
-        self.est_detail.setText(f"The test encode stopped: {msg}")
+        self.live(self.est_big, N_("Could not measure"))
+        self.live(self.est_detail, lambda: tr("The test encode stopped: {error}").format(error=reason(msg)))
+
+    @staticmethod
+    def estimate_detail(est):
+        card = est.encoder in ("nvenc", "av1_nvenc")
+        n = est.files_sampled
+        measured = (ntr("Measured on {n} file using your graphics card.", "Measured on {n} files using your graphics card.", n)
+                    if card else ntr("Measured on {n} file using your processor.", "Measured on {n} files using your processor.", n))
+        return " ".join((tr("Likely between {low} and {high}, out of {total}.").format(
+                            low=human_size(est.low_saved_bytes), high=human_size(est.high_saved_bytes),
+                            total=human_size(est.total_source_bytes)),
+                         measured.format(n=n),
+                         tr("Converting everything should take {time}.").format(time=human_time(est.seconds_estimate))))
 
     def _estimate_done(self, est):
         self.busy = False
@@ -927,31 +1204,30 @@ class MainWindow(QMainWindow):
         self.est_bar.hide()
         self.est_btn.setEnabled(True)
         pct = est.expected_saved_bytes / est.total_source_bytes * 100 if est.total_source_bytes else 0
-        self.est_big.setText(f"About {human_size(est.expected_saved_bytes)} saved ({pct:.0f}%)")
-        speed = "graphics card" if est.encoder in ("nvenc", "av1_nvenc") else "processor"
-        self.est_detail.setText(
-            f"Likely between {human_size(est.low_saved_bytes)} and {human_size(est.high_saved_bytes)}, out of "
-            f"{human_size(est.total_source_bytes)}. Measured on {est.files_sampled} file"
-            f"{'s' if est.files_sampled != 1 else ''} using your {speed}. "
-            f"Converting everything should take {human_time(est.seconds_estimate)}.")
+        self.live(self.est_big, lambda: tr("About {size} saved ({pct}%)").format(
+            size=human_size(est.expected_saved_bytes), pct=f"{pct:.0f}"))
+        self.live(self.est_detail, lambda: self.estimate_detail(est))
         policy = self.settings.policy()
         self.est_table.setSortingEnabled(False)
         self.est_table.setRowCount(len(est.samples))
         for i, s in enumerate(est.samples):
             ok = policy.meets_warning(s.vmaf_mean, s.vmaf_p1)
-            vals = [cell(Path(s.path).name, s.path), folder_cell(s.path),
-                    cell(f"{int(s.at_seconds) // 60}:{int(s.at_seconds) % 60:02d}", key=s.at_seconds),
-                    cell(human_size(s.source_bytes), key=s.source_bytes), cell(human_size(s.encoded_bytes), key=s.encoded_bytes),
+            name = cell(Path(s.path).name, s.path)
+            name.setData(Qt.UserRole, s.path)
+            vals = [name, folder_cell(s.path), cell(clock(s.at_seconds), key=s.at_seconds),
+                    size_cell(s.source_bytes), size_cell(s.encoded_bytes),
                     score_cell(s.vmaf_mean, policy.warn_mean), score_cell(s.vmaf_p1, policy.warn_p1),
-                    cell("Yes" if ok else "⚠ No, would get a warning")]
+                    cell(words("Yes") if ok else words("⚠ No, would get a warning"))]
             for c, it in enumerate(vals):
                 self.est_table.setItem(i, c, it)
         self.est_table.setSortingEnabled(True)
         fit_columns(self.est_table)
         self.to_convert.setEnabled(True)
-        self.conv_info.setText(f"{len(self.selected_files())} video{'s' if len(self.selected_files()) != 1 else ''}, {human_size(est.total_source_bytes)}. "
-                               f"Expected time: {human_time(est.seconds_estimate)}. Your computer will not go to sleep "
-                               f"while this runs.")
+        n = len(self.selected_files())
+        self.live(self.conv_info, lambda: " ".join((
+            ntr("{n} video, {size}.", "{n} videos, {size}.", n).format(n=n, size=human_size(est.total_source_bytes)),
+            tr("Expected time: {time}. Your computer will not go to sleep while this runs.").format(
+                time=human_time(est.seconds_estimate)))))
 
     # --- stage 3 ----------------------------------------------------------
     def _stat_card(self, title, good=False):
@@ -960,7 +1236,7 @@ class MainWindow(QMainWindow):
         box = QVBoxLayout(card)
         box.setContentsMargins(14, 10, 14, 12)
         box.setSpacing(2)
-        head = QLabel(title)
+        head = self.live(QLabel(), title)
         head.setObjectName("statTitle")
         head.setAlignment(Qt.AlignCenter)
         value = QLabel("–")
@@ -971,7 +1247,7 @@ class MainWindow(QMainWindow):
         return card, value
 
     def _page_convert(self):
-        p, v = self._page("Convert", "")
+        p, v = self._page(N_("Convert"), "")
         self.conv_hint = p.findChild(QLabel, "hint")
         self.conv_info = QLabel("")
         self.conv_info.setObjectName("hint")
@@ -979,9 +1255,8 @@ class MainWindow(QMainWindow):
         v.addWidget(self.conv_info)
         cards = QHBoxLayout()
         self.conv_cards = {}
-        for title, good in (("Files Processed", False), ("Space Saved", True), ("Current Batch", False),
-                            ("Time Remaining", False)):
-            card, value = self._stat_card(title, good)
+        for title in CARDS:
+            card, value = self._stat_card(title, title == "Space Saved")
             self.conv_cards[title] = value
             cards.addWidget(card)
         v.addLayout(cards)
@@ -990,14 +1265,14 @@ class MainWindow(QMainWindow):
         row = QHBoxLayout(progress)
         row.setContentsMargins(14, 12, 14, 12)
         row.setSpacing(16)
-        self.pause_btn = QPushButton("Pause")
+        self.pause_btn = self._button(N_("Pause"))
         self.pause_btn.setMinimumWidth(110)
         self.pause_btn.setEnabled(False)
         self.pause_btn.clicked.connect(self.toggle_pause)
         row.addWidget(self.pause_btn)
         bars = QVBoxLayout()
         bars.setSpacing(4)
-        self.overall_lab = QLabel("Overall Progress")
+        self.overall_lab = self.live(QLabel(), N_("Overall Progress"))
         self.overall_lab.setObjectName("barLabel")
         bars.addWidget(self.overall_lab)
         self.overall_bar = QProgressBar()
@@ -1006,7 +1281,7 @@ class MainWindow(QMainWindow):
         self.overall_bar.setTextVisible(False)
         bars.addWidget(self.overall_bar)
         bars.addSpacing(4)
-        self.file_lab = QLabel("Current File")
+        self.file_lab = self.live(QLabel(), N_("Current File"))
         self.file_lab.setObjectName("barLabel")
         bars.addWidget(self.file_lab)
         self.file_bar = QProgressBar()
@@ -1021,8 +1296,8 @@ class MainWindow(QMainWindow):
         self.conv_tabs = {}
         group = QButtonGroup(p)
         group.setExclusive(True)
-        for key in ("All", "Completed", "Active", "Waiting"):
-            b = QPushButton(key)
+        for key in TABS:
+            b = QPushButton(tr(key))
             b.setObjectName("tab")
             b.setCheckable(True)
             b.clicked.connect(self._apply_conv_filter)
@@ -1032,20 +1307,19 @@ class MainWindow(QMainWindow):
         self.conv_tabs["All"].setChecked(True)
         tabs.addStretch(1)
         v.addLayout(tabs)
-        self.conv_table = table(["File", "Folder", "State", "Before", "After", "% Saved", "VMAF average", "Worst 1%",
-                                 "Encoding"], 1,
+        self.conv_table = table([N_("File"), N_("Folder"), N_("State"), N_("Before"), N_("After"), N_("% Saved"),
+                                 N_("VMAF average"), N_("Worst 1%"), N_("Encoding")], 1,
                                 pills=2, right=(3, 4, 5, 6, 7))
         self.conv_table.horizontalHeader().sortIndicatorChanged.connect(
             lambda *_: QTimer.singleShot(0, self._apply_conv_filter))
         v.addWidget(self.conv_table, 1)
         row = QHBoxLayout()
-        back = QPushButton("←  Back")
+        back = self._button(N_("←  Back"))
         back.clicked.connect(lambda: self.go(1))
         self.conv_back = back
         row.addWidget(back)
         row.addStretch(1)
-        self.to_review = QPushButton("Next: compare and clean up  →")
-        self.to_review.setObjectName("next")
+        self.to_review = self._button(N_("Next: compare and clean up  →"), "next")
         self.to_review.clicked.connect(lambda: self.go(3))
         self.to_review.setEnabled(False)
         row.addWidget(self.to_review)
@@ -1063,8 +1337,8 @@ class MainWindow(QMainWindow):
         for i, pth in enumerate(paths):
             name = cell(Path(pth).name, pth)
             name.setData(Qt.UserRole, pth)
-            vals = [name, folder_cell(pth), cell("Waiting"), cell(key=-1), cell(key=-1), cell(key=-1), cell(key=-1),
-                    cell(key=-1), cell()]
+            vals = [name, folder_cell(pth), cell(words("Waiting")), cell(key=-1), cell(key=-1), cell(key=-1),
+                    cell(key=-1), cell(key=-1), cell()]
             for c, it in enumerate(vals):
                 self.conv_table.setItem(i, c, it)
         self.conv_table.setSortingEnabled(True)
@@ -1088,9 +1362,9 @@ class MainWindow(QMainWindow):
         counts = {k: 0 for k in ("Completed", "Active", "Waiting")}
         for state in getattr(self, "conv_state", {}).values():
             counts[state] += 1
-        self.conv_tabs["All"].setText(f"All  {t['total']}" if t["total"] else "All")
+        self.conv_tabs["All"].setText(f"{tr('All')}  {t['total']}" if t["total"] else tr("All"))
         for key, n in counts.items():
-            self.conv_tabs[key].setText(f"{key}  {n}" if n else key)
+            self.conv_tabs[key].setText(f"{tr(key)}  {n}" if n else tr(key))
         self._apply_conv_filter()
 
     def _apply_conv_filter(self, *_):
@@ -1109,7 +1383,7 @@ class MainWindow(QMainWindow):
         i = self._conv_row(path)
         if i is not None:
             self.conv_table.setSortingEnabled(False)
-            self.conv_table.setItem(i, 2, cell(text))
+            self.conv_table.setItem(i, 2, cell(words(text)))
             self.conv_table.setSortingEnabled(True)
             fit_columns(self.conv_table)
         self._refresh_conv_summary()
@@ -1126,12 +1400,12 @@ class MainWindow(QMainWindow):
         self.busy = True
         self.conv_count = None
         self.pause_btn.setEnabled(True)
-        self.pause_btn.setText("Pause")
+        self.live(self.pause_btn, N_("Pause"))
         self.conv_back.setEnabled(False)
         self.to_review.setEnabled(False)
         self.overall_bar.setValue(0)
         self.file_bar.setValue(0)
-        self.conv_cards["Time Remaining"].setText("Calculating…")
+        self.live(self.conv_cards["Time Remaining"], N_("Calculating…"))
         self._fill_conv_table(paths)
         self.converter = Converter(self.db_path, self.work_dir, encoder=chosen.hardware, codec=chosen.codec,
                                    max_resolution=chosen.max_resolution, quality=chosen.policy(), on_event=lambda ev: self.bridge.call.emit(lambda: self._on_event(ev)))
@@ -1161,10 +1435,10 @@ class MainWindow(QMainWindow):
             return
         self.conv_table.setSortingEnabled(False)
         self.conv_table.setItem(i, 2, result_cell(rec))
-        self.conv_table.setItem(i, 3, cell(human_size(rec.source_size), key=rec.source_size))
+        self.conv_table.setItem(i, 3, size_cell(rec.source_size))
         if rec.status in ("verified", "below_bar") and rec.source_size:
             saved = (1 - rec.output_size / rec.source_size) * 100
-            self.conv_table.setItem(i, 4, cell(human_size(rec.output_size), key=rec.output_size))
+            self.conv_table.setItem(i, 4, size_cell(rec.output_size))
             self.conv_table.setItem(i, 5, cell(f"{saved:.0f}%", key=saved))
         if rec.vmaf_mean is not None:
             self.conv_table.setItem(i, 6, score_cell(rec.vmaf_mean, rec.warn_mean))
@@ -1184,26 +1458,26 @@ class MainWindow(QMainWindow):
         elif t == "progress":
             self.overall_bar.setValue(int(ev["overall"] * 1000))
             self.file_bar.setValue(int(ev["file_fraction"] * 1000))
-            stage = {"search": "Finding the right quality", "encode": "Encoding", "verify": "Measuring every frame",
-                     "done": "Done"}[ev["stage"]]
-            self.file_lab.setText(f"Current File: {Path(ev['path']).name}: {stage}")
+            name, stage = Path(ev["path"]).name, STAGES[ev["stage"]]
+            self.live(self.file_lab, lambda: tr("Current File: {name}: {stage}").format(name=name, stage=tr(stage)))
             totals = self.conv_totals()
-            self.overall_lab.setText(f"Overall Progress: {ev['overall'] * 100:.0f}% "
-                                     f"({totals['done']} of {totals['total']} files)")
+            overall = f"{ev['overall'] * 100:.0f}"
+            self.live(self.overall_lab, lambda: tr("Overall Progress: {pct}% ({done} of {total} files)").format(
+                pct=overall, done=totals["done"], total=totals["total"]))
             if ev.get("eta_seconds") and not self.converter.is_paused:
-                self.conv_cards["Time Remaining"].setText(short_time(ev["eta_seconds"]))
+                eta = ev["eta_seconds"]
+                self.live(self.conv_cards["Time Remaining"], lambda: short_time(eta))
             if ev["stage"] != "done":
-                self._set_conv_stage(ev["path"], {"search": "Finding quality", "encode": "Encoding",
-                                                  "verify": "Measuring"}[ev["stage"]])
+                self._set_conv_stage(ev["path"], SHORT_STAGES[ev["stage"]])
         elif t == "file_start":
-            self._set_conv_stage(ev["path"], "Finding quality")
+            self._set_conv_stage(ev["path"], SHORT_STAGES["search"])
         elif t == "file_done":
             self._show_row(ev["record"])
         elif t == "paused":
-            self.pause_btn.setText("Resume")
-            self.conv_cards["Time Remaining"].setText("Paused")
+            self.live(self.pause_btn, N_("Resume"))
+            self.live(self.conv_cards["Time Remaining"], N_("Paused"))
         elif t == "resumed":
-            self.pause_btn.setText("Pause")
+            self.live(self.pause_btn, N_("Pause"))
         elif t == "batch_done":
             self._batch_finished(ev["summary"])
         elif t == "stopped":
@@ -1215,29 +1489,34 @@ class MainWindow(QMainWindow):
         else:
             self.converter.pause()
 
+    @staticmethod
+    def finished_text(s):
+        kept = s["kept_original"] + s["failed"]
+        return (tr("Finished: {n} verified").format(n=s["verified"])
+                + (tr(", ⚠ {n} below target").format(n=s["below_bar"]) if s["below_bar"] else "")
+                + (tr(", {n} kept as original").format(n=kept) if kept else "")
+                + (" " + tr("(see next page)") if kept or s["below_bar"] else ""))
+
     def _batch_finished(self, s):
         self.busy = False
         self.pause_btn.setEnabled(False)
         self.conv_back.setEnabled(True)
         self.to_review.setEnabled(True)
         self.overall_bar.setValue(1000)
-        self.file_lab.setText("Current File: none, the batch is finished")
+        self.live(self.file_lab, N_("Current File: none, the batch is finished"))
         self.file_bar.setValue(1000)
-        self.conv_cards["Time Remaining"].setText("Done")
-        kept = s["kept_original"] + s["failed"]
-        self.overall_lab.setText(f"Finished: {s['verified']} verified"
-                                 + (f", ⚠ {s['below_bar']} below target" if s["below_bar"] else "")
-                                 + (f", {kept} kept as original" if kept else "")
-                                 + (" (see next page)" if kept or s["below_bar"] else ""))
+        self.live(self.conv_cards["Time Remaining"], N_("Done"))
+        self.live(self.overall_lab, lambda: self.finished_text(s))
         if self.conv_count == 0:
-            self.overall_lab.setText("Nothing left to convert: every selected file is already finished.")
+            self.live(self.overall_lab, N_("Nothing left to convert: every selected file is already finished."))
 
     def _batch_crashed(self, msg):
         self.busy = False
         self.pause_btn.setEnabled(False)
         self.conv_back.setEnabled(True)
         self.to_review.setEnabled(True)
-        QMessageBox.warning(self, "The batch stopped", f"{msg}\n\nFiles already verified are safe. Reopen the app to continue.")
+        QMessageBox.warning(self, tr("The batch stopped"),
+                            reason(msg) + "\n\n" + tr("Files already verified are safe. Reopen the app to continue."))
 
     def _unfinished(self):
         return [r for r in db.read_records(self.db_path) if r.status in ("pending", "encoding") and os.path.exists(r.source)]
@@ -1256,19 +1535,19 @@ class MainWindow(QMainWindow):
         self.folder = None
         self.result = None
         self.estimate = None
-        self.folder_lab.setText("No folder chosen")
-        self.scan_note.setText("")
+        self.live(self.folder_lab, N_("No folder chosen"))
+        self.live(self.scan_note, lambda: "")
         self.scan_table.setRowCount(0)
         self.to_estimate.setEnabled(False)
         self._reset_estimate_view()
         self._fill_conv_table([])
         for t in (self.scan_table, self.est_table, self.conv_table, self.review):
             fit_columns(t, force=True)
-        self.conv_cards["Time Remaining"].setText("–")
+        self.live(self.conv_cards["Time Remaining"], lambda: "–")
         self.overall_bar.setValue(0)
         self.file_bar.setValue(0)
-        self.overall_lab.setText("Overall Progress")
-        self.file_lab.setText("Current File")
+        self.live(self.overall_lab, N_("Overall Progress"))
+        self.live(self.file_lab, N_("Current File"))
         self.pause_btn.setEnabled(False)
         self.to_review.setEnabled(False)
         self.go(0)
@@ -1279,10 +1558,11 @@ class MainWindow(QMainWindow):
         left = self._unfinished()
         if not left:
             return
-        ans = QMessageBox.question(self, "Continue where you left off?",
-                                   f"{len(left)} video{'s' if len(left) != 1 else ''} from your last batch "
-                                   f"{'are' if len(left) != 1 else 'is'} not finished. Files already verified will "
-                                   "not be converted again. Continue now?")
+        ans = QMessageBox.question(self, tr("Continue where you left off?"), ntr(
+            "{n} video from your last batch is not finished. Files already verified will not be converted again. "
+            "Continue now?",
+            "{n} videos from your last batch are not finished. Files already verified will not be converted again. "
+            "Continue now?", len(left)).format(n=len(left)))
         if ans == QMessageBox.Yes:
             self.go(2)
             self.start_batch([r.source for r in left])
@@ -1291,38 +1571,43 @@ class MainWindow(QMainWindow):
 
     # --- stage 4 ----------------------------------------------------------
     def _page_review(self):
-        p, v = self._page("Compare and clean up",
-                          "Play any original beside its conversion, in sync. When you are happy, you can send originals "
-                          "to the Recycle Bin. This step is optional. Click a column title to sort.")
+        p, v = self._page(N_("Compare and clean up"),
+                          N_("Play any original beside its conversion, in sync. When you are happy, you can send originals "
+                             "to the Recycle Bin. This step is optional. Click a column title to sort."))
         self.savings_lab = QLabel("")
         self.savings_lab.setObjectName("big")
         v.addWidget(self.savings_lab)
         row = QHBoxLayout()
-        self.select_all_btn = QPushButton("Select All")
+        self.select_all_btn = QPushButton(tr("Select All"))
         self.select_all_btn.clicked.connect(self.toggle_select_all)
         row.addWidget(self.select_all_btn)
-        self.select_rec_btn = QPushButton("Select Recommended")
-        self.select_rec_btn.setToolTip("Recommended means the conversion met the quality target, with no warning sign.")
+        self.select_rec_btn = QPushButton(tr("Select Recommended"))
+        self.live(self.select_rec_btn, N_("Recommended means the conversion met the quality target, with no warning sign."),
+                  "setToolTip")
         self.select_rec_btn.clicked.connect(self.toggle_select_recommended)
         row.addWidget(self.select_rec_btn)
         row.addStretch(1)
         v.addLayout(row)
-        self.review = table(["Delete?", "Original", "Folder", "Before", "After", "% Saved", "VMAF average", "Worst 1%",
-                             "Result", "Encoding"], 8, ticks=True, wide=2, pills=8, right=(3, 4, 5, 6, 7))
+        self.tick_hint = self.live(QLabel(), N_("Tip: Ctrl+click a row to tick it, Shift+click to tick a range, "
+                                                "Ctrl+A to tick all. Right-click a row to open its folder."))
+        self.tick_hint.setObjectName("hint")
+        self.tick_hint.setWordWrap(True)
+        v.addWidget(self.tick_hint)
+        self.review = table([N_("Delete?"), N_("Original"), N_("Folder"), N_("Before"), N_("After"), N_("% Saved"),
+                             N_("VMAF average"), N_("Worst 1%"), N_("Result"), N_("Encoding")], 8, ticks=True, wide=2,
+                            pills=8, right=(3, 4, 5, 6, 7))
         self.review.cellClicked.connect(self._cell_clicked)
         v.addWidget(self.review, 3)
         row = QHBoxLayout()
-        self.play_btn = QPushButton("▶  Play selected side by side")
-        self.play_btn.setObjectName("primary")
+        self.play_btn = self._button(N_("▶  Play selected side by side"), "primary")
         self.play_btn.clicked.connect(self.play_selected)
         row.addWidget(self.play_btn)
         row.addStretch(1)
-        self.rename_btn = QPushButton("Remove the added tags from names")
+        self.rename_btn = self._button(N_("Remove the added tags from names"))
         self.rename_btn.setEnabled(False)
         self.rename_btn.clicked.connect(self.rename_done_files)
         row.addWidget(self.rename_btn)
-        self.delete_btn = QPushButton("Send ticked originals to Recycle Bin…")
-        self.delete_btn.setObjectName("danger")
+        self.delete_btn = self._button(N_("Send ticked originals to Recycle Bin…"), "danger")
         self.delete_btn.setEnabled(False)
         self.delete_btn.clicked.connect(self.delete_ticked)
         row.addWidget(self.delete_btn)
@@ -1331,20 +1616,20 @@ class MainWindow(QMainWindow):
         self.action_bar.setRange(0, 1)
         self.action_bar.hide()
         v.addWidget(self.action_bar)
-        self.problem_title = QLabel("Needs your attention")
+        self.problem_title = self.live(QLabel(), N_("Needs your attention"))
         self.problem_title.setStyleSheet("font-weight:600;")
         v.addWidget(self.problem_title)
         self.problems = QTextBrowser()
         self.problems.setMaximumHeight(120)
         v.addWidget(self.problems)
         row = QHBoxLayout()
-        back = QPushButton("←  Back")
+        back = self._button(N_("←  Back"))
         back.clicked.connect(lambda: self.go(2))
         row.addWidget(back)
         row.addStretch(1)
-        self.start_over_btn = QPushButton("Start Over")
-        self.start_over_btn.setObjectName("next")
-        self.start_over_btn.setToolTip("Forget these files and go back to step 1. Your videos and reports aren't touched.")
+        self.start_over_btn = self._button(N_("Start Over"), "next")
+        self.live(self.start_over_btn, N_("Forget these files and go back to step 1. Your videos and reports aren't touched."),
+                  "setToolTip")
         self.start_over_btn.clicked.connect(self.start_over)
         row.addWidget(self.start_over_btn)
         v.addLayout(row)
@@ -1365,9 +1650,9 @@ class MainWindow(QMainWindow):
         for i, r in enumerate(shown):
             converted = r.status in ("verified", "below_bar", "original_deleted")
             vals = [tick_cell(r.source, False if r.source in allow else None), cell(Path(r.source).name, r.source),
-                    folder_cell(r.source), cell(human_size(r.source_size), key=r.source_size)]
+                    folder_cell(r.source), size_cell(r.source_size)]
             if converted and r.source_size:
-                vals += [cell(human_size(r.output_size), key=r.output_size),
+                vals += [size_cell(r.output_size),
                          cell(f"{(1 - r.output_size / r.source_size) * 100:.0f}%", key=1 - r.output_size / r.source_size)]
                 saved += r.source_size - r.output_size
             else:
@@ -1377,17 +1662,19 @@ class MainWindow(QMainWindow):
                 self.review.setItem(i, c, it)
         self.review.setSortingEnabled(True)
         fit_columns(self.review)
-        self.savings_lab.setText(f"{human_size(saved)} can be saved once originals are removed" if saved else "")
+        self.live(self.savings_lab, lambda: tr("{size} can be saved once originals are removed").format(
+            size=human_size(saved)) if saved else "")
         bad = [r for r in shown if r.status in ("kept_original", "failed", "below_bar")]
-        self.problem_title.setText(f"Needs your attention ({len(bad)})" if bad else "Needs your attention: nothing")
-        self.problems.setPlainText("\n\n".join(f"{Path(r.source).name}\n  {r.reason}" for r in bad)
-                                   or ("Every conversion passed." if shown else "Nothing converted yet."))
+        self.live(self.problem_title, lambda: tr("Needs your attention ({n})").format(n=len(bad)) if bad
+                  else tr("Needs your attention: nothing"))
+        self.live(self.problems, lambda: "\n\n".join(f"{Path(r.source).name}\n  {reason(r.reason)}" for r in bad)
+                  or (tr("Every conversion passed.") if shown else tr("Nothing converted yet.")), "setPlainText")
         self._tick_changed()
         n = len(trash.renamable(self.db_path))
         self.rename_btn.setEnabled(bool(n))
-        self.rename_btn.setText(f"Remove the added tags from {n} name{'s' if n != 1 else ''}…" if n
-                                else "Remove the added tags from names")
-        self.rename_btn.setToolTip("Available after an original has been sent to the Recycle Bin.")
+        self.live(self.rename_btn, lambda: ntr("Remove the added tags from {n} name…", "Remove the added tags from {n} names…",
+                                               n).format(n=n) if n else tr("Remove the added tags from names"))
+        self.live(self.rename_btn, N_("Available after an original has been sent to the Recycle Bin."), "setToolTip")
         for row in range(self.review.rowCount()):
             rec = self._review_rec(row)
             if rec and rec.status in ("verified", "below_bar"):
@@ -1411,12 +1698,67 @@ class MainWindow(QMainWindow):
     def _ticked(self):
         return [rec for it, rec in self._review_boxes() if it.checkState() == Qt.Checked]
 
-    def _cell_clicked(self, row, col):
+    def _review_row_of(self, source):
+        for row in range(self.review.rowCount()):
+            it = self.review.item(row, 0)
+            if it and it.data(Qt.UserRole) == source:
+                return row
+        return None
+
+    def _cell_clicked(self, row, col, mods=None):
+        """Like Explorer, but on the tick boxes: the box or Ctrl+click ticks one row, Shift+click
+        ticks a range. A plain click elsewhere only picks the row for Play."""
+        mods = QApplication.keyboardModifiers() if mods is None else mods
         rec = self._review_rec(row)
-        if col != 0 or rec is None or rec.source not in getattr(self, "review_allow", ()):
+        anchor, self._tick_anchor = self._tick_anchor, rec.source if rec else None
+        allow = getattr(self, "review_allow", ())
+        if mods & Qt.ShiftModifier and anchor is not None:
+            start = self._review_row_of(anchor)
+            if start is not None:
+                lo, hi = sorted((start, row))
+                for r in range(lo, hi + 1):
+                    other = self._review_rec(r)
+                    if other and other.source in allow and not self.review.isRowHidden(r):
+                        self.review.item(r, 0).setCheckState(Qt.Checked)
+                self._tick_changed()
+                return
+        if rec is None or rec.source not in allow:
             return
-        toggle_tick(self.review, row)
-        self._tick_changed()
+        if col == 0 or mods & Qt.ControlModifier:
+            toggle_tick(self.review, row)
+            self._tick_changed()
+
+    def tick_every_deletable(self):
+        self._set_ticks(self._review_boxes(), True)
+
+    def eventFilter(self, obj, ev):
+        if obj is self.review and ev.type() == QEvent.KeyPress and ev.matches(QKeySequence.SelectAll):
+            self.tick_every_deletable()
+            return True
+        return super().eventFilter(obj, ev)
+
+    def _location_of(self, t, row):
+        """The file to show in Explorer. Once an original is in the Recycle Bin, its conversion."""
+        path = row_path(t, row)
+        if t is self.review:
+            rec = self._review_rec(row)
+            if rec and rec.output and not os.path.exists(rec.source) and os.path.exists(rec.output):
+                path = rec.output
+        return path
+
+    def table_menu_actions(self, t, row):
+        path = self._location_of(t, row)
+        return [(tr("Open file location"), lambda: open_location(path))] if path else []
+
+    def _table_menu(self, t, pos):
+        row = t.rowAt(pos.y())
+        if row < 0:
+            return
+        menu = QMenu(t)
+        for text, fn in self.table_menu_actions(t, row):
+            menu.addAction(text).triggered.connect(fn)
+        if menu.actions():
+            menu.exec(t.viewport().mapToGlobal(pos))
 
     def _set_ticks(self, boxes, on):
         for it, _ in boxes:
@@ -1434,12 +1776,14 @@ class MainWindow(QMainWindow):
     def _tick_changed(self, *_):
         n = self._ticked()
         self.delete_btn.setEnabled(bool(n) and not self.action_running)
-        self.delete_btn.setText(f"Send {len(n)} ticked original{'s' if len(n) != 1 else ''} to Recycle Bin…"
-                                if n else "Tick originals above to delete them")
+        count = len(n)
+        self.live(self.delete_btn, lambda: ntr("Send {n} ticked original to Recycle Bin…",
+                                               "Send {n} ticked originals to Recycle Bin…", count).format(n=count)
+                  if count else tr("Tick originals above to delete them"))
         every, good = self._review_boxes(), self._review_boxes(only_recommended=True)
         on = lambda boxes: bool(boxes) and all(it.checkState() == Qt.Checked for it, _ in boxes)
-        self.select_all_btn.setText("Deselect All" if on(every) else "Select All")
-        self.select_rec_btn.setText("Deselect Recommended" if on(good) else "Select Recommended")
+        self.select_all_btn.setText(tr("Deselect All") if on(every) else tr("Select All"))
+        self.select_rec_btn.setText(tr("Deselect Recommended") if on(good) else tr("Select Recommended"))
         self.select_all_btn.setEnabled(bool(every) and not self.action_running)
         self.select_rec_btn.setEnabled(bool(good) and not self.action_running)
         self.start_over_btn.setEnabled(not self.busy and not self.action_running)
@@ -1447,11 +1791,12 @@ class MainWindow(QMainWindow):
     def play_selected(self):
         r = self._review_rec(self.review.currentRow())
         if r is None:
-            QMessageBox.information(self, "Pick a video", "Click a row in the list first.")
+            QMessageBox.information(self, tr("Pick a video"), tr("Click a row in the list first."))
             return
         if r.status not in ("verified", "below_bar") or not os.path.exists(r.source) or not os.path.exists(r.output):
-            QMessageBox.information(self, "Cannot compare",
-                                    "This row needs both an original and a verified conversion on disk.\n" + (r.reason or ""))
+            QMessageBox.information(self, tr("Cannot compare"),
+                                    tr("This row needs both an original and a verified conversion on disk.") + "\n"
+                                    + (reason(r.reason) or ""))
             return
         w = PlayerWindow(self, r)
         w.exec()
@@ -1470,8 +1815,9 @@ class MainWindow(QMainWindow):
     def _action_progress(self, verb, done, total, path):
         self.action_bar.setRange(0, max(1, total))
         self.action_bar.setValue(done)
-        name = Path(path).name if path else "finishing"
-        self.action_bar.setFormat(f"{verb} {min(done + 1, total)} of {total}: {name}")
+        name = Path(path).name if path else tr("finishing")
+        self.action_bar.setFormat(tr("{action} {i} of {total}: {name}").format(
+            action=tr(verb), i=min(done + 1, total), total=total, name=name))
         self.action_bar.show()
 
     def _action_begin(self):
@@ -1500,7 +1846,7 @@ class MainWindow(QMainWindow):
 
     def start_delete(self, recs):
         # The dialog already named any below-the-bar files before the user confirmed.
-        self._run_action("Re-checking and removing",
+        self._run_action(N_("Re-checking and removing"),
                          lambda tick: trash.delete_originals(self.db_path, [r.source for r in recs], confirmed=True,
                                                              below_bar_confirmed=True, resized_confirmed=True,
                                                              on_progress=tick),
@@ -1508,43 +1854,63 @@ class MainWindow(QMainWindow):
 
     def _delete_done(self, res):
         self.refresh_review()
-        text = f"{len(res.deleted)} original{'s' if len(res.deleted) != 1 else ''} moved to the Recycle Bin."
+        n = len(res.deleted)
+        text = ntr("{n} original moved to the Recycle Bin.", "{n} originals moved to the Recycle Bin.", n).format(n=n)
         if res.refused:
-            text += "\n\nLeft in place:\n" + "\n".join(f"{Path(p).name}: {why}" for p, why in res.refused)
-        QMessageBox.information(self, "Done", text)
+            text += left_in_place(res.refused)
+        QMessageBox.information(self, tr("Done"), text)
 
     def rename_done_files(self):
         recs = trash.renamable(self.db_path)
         if not recs:
             return
-        ans = QMessageBox.question(self, "Remove the added tags from names?",
-                                   f"{len(recs)} conversion{'s' if len(recs) != 1 else ''} whose original is in the "
-                                   f"Recycle Bin will take the original's name, for example "
-                                   f"{Path(recs[0].source).name}.\n\nOnly the name changes. If you later restore an "
-                                   "original from the Recycle Bin, Windows will ask what to do about the same name.")
+        n = len(recs)
+        ans = QMessageBox.question(self, tr("Remove the added tags from names?"), ntr(
+            "{n} conversion whose original is in the Recycle Bin will take the original's name, for example {name}.",
+            "{n} conversions whose original is in the Recycle Bin will take the original's name, for example {name}.",
+            n).format(n=n, name=Path(recs[0].source).name) + "\n\n" + tr(
+            "Only the name changes. If you later restore an original from the Recycle Bin, Windows will ask what to "
+            "do about the same name."))
         if ans == QMessageBox.Yes:
             self.start_rename(recs)
 
     def start_rename(self, recs):
-        self._run_action("Renaming",
+        self._run_action(N_("Renaming"),
                          lambda tick: trash.remove_suffix(self.db_path, [r.source for r in recs], confirmed=True,
                                                           on_progress=tick),
                          self._rename_done)
 
     def _rename_done(self, res):
         self.refresh_review()
-        text = f"{len(res.renamed)} file{'s' if len(res.renamed) != 1 else ''} renamed."
+        n = len(res.renamed)
+        text = ntr("{n} file renamed.", "{n} files renamed.", n).format(n=n)
         if res.refused:
-            text += "\n\nLeft as they are:\n" + "\n".join(f"{Path(p).name}: {why}" for p, why in res.refused)
-        QMessageBox.information(self, "Done", text)
+            text += left_in_place(res.refused, N_("Left as they are:"))
+        QMessageBox.information(self, tr("Done"), text)
 
     # --- Settings ---------------------------------------------------------
     def _page_settings(self):
-        p, v = self._page("Settings", "")
-        self.settings_intro = QLabel("The default settings suit most people, so you can leave this page alone. "
-                                     "Change something only if you have a reason.")
+        p = QWidget()
+        p.setObjectName("page")
+        page = QVBoxLayout(p)
+        page.setContentsMargins(24, 20, 24, 20)
+        page.setSpacing(10)
+        columns = QHBoxLayout()
+        columns.setSpacing(24)
+        page.addLayout(columns, 1)
+        left = QVBoxLayout()
+        left.setSpacing(10)
+        columns.addLayout(left, 3)
+        right = QVBoxLayout()
+        right.setSpacing(10)
+        columns.addLayout(right, 2)
+        t = self.live(QLabel(), N_("Settings"))
+        t.setObjectName("title")
+        left.addWidget(t)
+        self.settings_intro = self.live(QLabel(), N_("The default settings suit most people, so you can leave this page "
+                                                     "alone. Change something only if you have a reason."))
         self.settings_intro.setWordWrap(True)
-        v.addWidget(self.settings_intro)
+        left.addWidget(self.settings_intro)
         holder = QWidget()
         holder.setObjectName("page")
         inner = QVBoxLayout(holder)
@@ -1552,6 +1918,7 @@ class MainWindow(QMainWindow):
         inner.setSpacing(10)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         scroll.setWidget(holder)
         card = QFrame()
         card.setObjectName("card")
@@ -1560,12 +1927,16 @@ class MainWindow(QMainWindow):
         grid.setVerticalSpacing(10)
         grid.setColumnStretch(1, 1)
 
-        def add_combo(row, title, items):
-            label = QLabel(title)
+        def add_combo(row, title, items, translate=True):
+            label = self.live(QLabel(), title)
             label.setStyleSheet("font-weight:600; background:transparent; border:none;")
             box = QComboBox()
+            box.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
+            box.setMinimumContentsLength(24)
             for text, value in items:
-                box.addItem(text, value)
+                box.addItem(tr(text) if translate else text, value)
+            if translate:
+                self._combos.append((box, items))
             grid.addWidget(label, row, 0)
             grid.addWidget(box, row, 1)
             return box
@@ -1579,32 +1950,38 @@ class MainWindow(QMainWindow):
             grid.addWidget(note, row, 1)
             return note
 
-        self.hardware_box = add_combo(0, "Encode with", [("Graphics card (fast, recommended)", "gpu"),
-                                                         ("Processor (slow, works on any PC)", "cpu")])
-        self.using_label = add_note(1)
+        # Each language by its own name, so anyone can find theirs.
+        self.language_box = add_combo(0, N_("Language"), [(name, code) for code, name in i18n.LANGUAGES.items()],
+                                      translate=False)
+        self.language_box.setCurrentIndex(self.language_box.findData(i18n.language()))
+        self.language_box.currentIndexChanged.connect(lambda _: self.set_language(self.language_box.currentData()))
+        self.hardware_box = add_combo(1, N_("Encode with"), [(N_("Graphics card (fast, recommended)"), "gpu"),
+                                                             (N_("Processor (slow, works on any PC)"), "cpu")])
+        self.using_label = add_note(2)
         self.using_label.show()
-        self.codec_box = add_combo(2, "Video format", [("H.265 (recommended)", "h265"), ("AV1", "av1")])
-        self.codec_note = add_note(3)
-        self.resolution_box = add_combo(4, "Largest size", [("Keep the original resolution (recommended)", "original"),
-                                                            ("4K", "4k"), ("1080p", "1080p"), ("720p", "720p")])
-        self.resolution_note = add_note(5)
-        self.details_box = QCheckBox("Show an Encoding column with format, quality setting, resolution and bitrate")
-        grid.addWidget(self.details_box, 6, 1)
-        self.show_welcome_box = QCheckBox("Show the Welcome screen when the app opens")
-        grid.addWidget(self.show_welcome_box, 7, 1)
+        self.codec_box = add_combo(3, N_("Video format"), [(N_("H.265 (recommended)"), "h265"), ("AV1", "av1")])
+        self.codec_note = add_note(4)
+        self.resolution_box = add_combo(5, N_("Largest size"), [(N_("Keep the original resolution (recommended)"), "original"),
+                                                                ("4K", "4k"), ("1080p", "1080p"), ("720p", "720p")])
+        self.resolution_note = add_note(6)
+        self.details_box = self.live(QCheckBox(), N_("Show an Encoding column"))
+        grid.addWidget(self.details_box, 7, 1)
+        self.details_note = add_note(8)
+        self.live(self.details_note, N_("Format, quality setting, resolution and bitrate of each conversion."))
+        self.details_note.show()
+        self.show_welcome_box = self.live(QCheckBox(), N_("Show the Welcome screen when the app opens"))
+        grid.addWidget(self.show_welcome_box, 9, 1)
         inner.addWidget(card)
         inner.addWidget(self._advanced_card())
         inner.addStretch(1)
-        v.addWidget(scroll, 1)
+        left.addWidget(scroll, 1)
+        self._about_column(right)
         row = QHBoxLayout()
-        back = QPushButton("←  Back")
+        back = self._button(N_("←  Back"))
         back.clicked.connect(lambda: self.go(self.stage))
         row.addWidget(back)
         row.addStretch(1)
-        self.settings_reset = QPushButton("Back to the defaults")
-        self.settings_reset.clicked.connect(self._reset_settings)
-        row.addWidget(self.settings_reset)
-        v.addLayout(row)
+        page.addLayout(row)
         self._show_settings_values()
         for box in (self.hardware_box, self.codec_box, self.resolution_box):
             box.currentIndexChanged.connect(self._settings_changed)
@@ -1625,7 +2002,7 @@ class MainWindow(QMainWindow):
         plain = "background:transparent; border:none;"
 
         def label(text, bold=False):
-            lab = QLabel(text)
+            lab = self.live(QLabel(), text)
             lab.setStyleSheet(plain + ("font-weight:600;" if bold else ""))
             return lab
 
@@ -1635,58 +2012,63 @@ class MainWindow(QMainWindow):
             box.setDecimals(1)
             box.setSingleStep(0.5)
             box.setMinimumWidth(90)
+            box.setLocale(qt_locale())
             return box
 
-        grid.addWidget(label("Advanced", True), 0, 0)
-        self.advanced_note = QLabel(
-            "Only change these if you know what you are doing: they can lower the quality of your videos. "
-            f"<a href='{config.ADVANCED_DOCS_URL}'>Read what each one does</a> ({config.DOCS_URL}).")
+        def hint(text):
+            lab = self.live(QLabel(), text)
+            lab.setObjectName("hint")
+            lab.setWordWrap(True)
+            lab.setStyleSheet(plain)
+            return lab
+
+        grid.addWidget(label(N_("Advanced"), True), 0, 0)
+        self.advanced_note = self.live(QLabel(), lambda: tr(
+            "Only change these if you know what you are doing: they can lower the quality of your videos.")
+            + f" <a href='{config.ADVANCED_DOCS_URL}'>{tr('Read what each one does')}</a><br>({config.DOCS_URL})")
         self.advanced_note.setWordWrap(True)
         self.advanced_note.setObjectName("hint")
         self.advanced_note.setStyleSheet(plain)
         self.advanced_note.setOpenExternalLinks(True)
         grid.addWidget(self.advanced_note, 0, 1, 1, 2)
-        self.advanced_box = QCheckBox("I've read this and understand what I'm doing")
+        self.advanced_box = self.live(QCheckBox(), N_("I've read this and understand what I'm doing"))
         grid.addWidget(self.advanced_box, 1, 1, 1, 2)
 
-        self.warn_label = label("Warn below")
+        self.warn_label = label(N_("Warn below"))
         grid.addWidget(self.warn_label, 2, 0)
         self.warn_mean_box, self.warn_p1_box = number(), number()
         pair = QHBoxLayout()
         pair.setSpacing(10)
-        pair.addWidget(label("VMAF average"))
+        pair.addWidget(label(N_("VMAF average")))
         pair.addWidget(self.warn_mean_box)
         pair.addSpacing(16)
-        pair.addWidget(label("Worst 1%"))
+        pair.addWidget(label(N_("Worst 1%")))
         pair.addWidget(self.warn_p1_box)
         pair.addStretch(1)
         grid.addLayout(pair, 2, 1, 1, 2)
-        self.aim_box = QCheckBox("Also aim for these values when choosing quality")
+        self.aim_box = self.live(QCheckBox(), N_("Also aim for these values when choosing quality"))
         grid.addWidget(self.aim_box, 3, 1, 1, 2)
-        self.aim_note = QLabel("Ticked, lower values make smaller files with lower quality, and higher values make "
-                               "larger files. Not ticked, your files stay the same and only the warning moves.")
-        self.aim_note.setObjectName("hint")
-        self.aim_note.setWordWrap(True)
-        self.aim_note.setStyleSheet(plain)
+        self.aim_note = hint(N_("Ticked, lower values make smaller files with lower quality, and higher values make "
+                                "larger files. Not ticked, your files stay the same and only the warning moves."))
         grid.addWidget(self.aim_note, 4, 1, 1, 2)
-        self.minimum_box = QCheckBox("Don't keep a conversion below a minimum")
+        self.minimum_box = self.live(QCheckBox(), N_("Don't keep a conversion below a minimum"))
         grid.addWidget(self.minimum_box, 5, 1, 1, 2)
         self.min_mean_box, self.min_p1_box = number(), number()
         pair = QHBoxLayout()
         pair.setSpacing(10)
-        pair.addWidget(label("VMAF average"))
+        pair.addWidget(label(N_("VMAF average")))
         pair.addWidget(self.min_mean_box)
         pair.addSpacing(16)
-        pair.addWidget(label("Worst 1%"))
+        pair.addWidget(label(N_("Worst 1%")))
         pair.addWidget(self.min_p1_box)
         pair.addStretch(1)
         grid.addLayout(pair, 6, 1, 1, 2)
-        self.minimum_note = QLabel("Below the minimum, nothing is kept and your original stays. Off by default, so "
-                                   "every result that is smaller and matches is kept, with a warning if needed.")
-        self.minimum_note.setObjectName("hint")
-        self.minimum_note.setWordWrap(True)
-        self.minimum_note.setStyleSheet(plain)
+        self.minimum_note = hint(N_("Below the minimum, nothing is kept and your original stays. Off by default, so "
+                                    "every result that is smaller and matches is kept, with a warning if needed."))
         grid.addWidget(self.minimum_note, 7, 1, 1, 2)
+        self.settings_reset = self._button(N_("Back to the defaults"))
+        self.settings_reset.clicked.connect(self._reset_settings)
+        grid.addWidget(self.settings_reset, 8, 2, Qt.AlignRight)
         return card
 
     def _show_settings_values(self):
@@ -1726,7 +2108,7 @@ class MainWindow(QMainWindow):
                                               self.details_box.isChecked(), self.advanced_box.isChecked(),
                                               self.warn_mean_box.value(), self.warn_p1_box.value(), self.aim_box.isChecked(),
                                               self.minimum_box.isChecked(), self.min_mean_box.value(), self.min_p1_box.value(),
-                                              not self.show_welcome_box.isChecked())
+                                              not self.show_welcome_box.isChecked(), self.settings.language)
         app_settings.save(self.db_path, self.settings)
         if old != key(self.settings):
             self.estimate = None        # the measured saving no longer applies
@@ -1734,7 +2116,8 @@ class MainWindow(QMainWindow):
         self._apply_settings_view()
 
     def _reset_settings(self):
-        self.settings = app_settings.Settings()
+        """Every choice back to its default, except the language: that isn't about your videos."""
+        self.settings = app_settings.Settings(language=self.settings.language)
         self._show_settings_values()
         self._settings_changed()
 
@@ -1744,23 +2127,26 @@ class MainWindow(QMainWindow):
     def _using_text(self):
         s = self.settings
         codec = config.CODEC_NAMES[s.codec]
-        name = "graphics card" if encode.resolve_encoder(s.hardware, s.codec) in ("nvenc", "av1_nvenc") else "processor"
-        text = f"In use: your {name}, making {codec} video."
+        card = encode.resolve_encoder(s.hardware, s.codec) in ("nvenc", "av1_nvenc")
+        text = (tr("In use: your graphics card, making {codec} video.") if card
+                else tr("In use: your processor, making {codec} video.")).format(codec=codec)
         if not self._card_works():
             found = encode.gpu_name()
-            text += (f" {found} was found, but it can't make {codec} video, so the processor is used." if found
-                     else " No compatible graphics card was found (only NVIDIA is supported), so the processor is used.")
+            text += " " + (tr("{card} was found, but it can't make {codec} video, so the processor is used.").format(
+                               card=found, codec=codec) if found
+                           else tr("No compatible graphics card was found (only NVIDIA is supported), so the processor "
+                                   "is used."))
         return text
 
     def _show_card(self):
         """Names the card, greys it out if it can't do this format, and picks what will really be used."""
         ok, found = self._card_works(), encode.gpu_name()
         if ok:
-            text = f"Graphics card (fast, recommended) ({found or 'NVIDIA card'} detected)"
+            text = tr("Graphics card (fast, recommended) ({card} detected)").format(card=found or tr("NVIDIA card"))
         elif found:
-            text = f"Graphics card ({found} can't make this format)"
+            text = tr("Graphics card ({card} can't make this format)").format(card=found)
         else:
-            text = "Graphics card (no compatible graphics card detected)"
+            text = tr("Graphics card (no compatible graphics card detected)")
         box = self.hardware_box
         box.blockSignals(True)
         box.setItemText(0, text)
@@ -1778,35 +2164,43 @@ class MainWindow(QMainWindow):
         for w in (self.min_mean_box, self.min_p1_box):
             w.setEnabled(unlocked and s.use_minimum)
         policy = s.policy()
-        average = config.TIP_AVERAGE
+        average = tr(config.TIP_AVERAGE)
         if policy.warn_mean != config.VMAF_MEAN_MIN:
-            average += f" Your target is {policy.warn_mean:g}."
-        worst = config.TIP_WORST.format(p1=policy.warn_p1)
+            average += " " + tr("Your target is {mean}.").format(mean=g(policy.warn_mean))
+        worst = tr(config.TIP_WORST).format(p1=g(policy.warn_p1))
         for t, p1_title in ((self.est_table, "VMAF worst 1%"), (self.conv_table, "Worst 1%"), (self.review, "Worst 1%")):
             for c in range(t.columnCount()):
-                head = t.horizontalHeaderItem(c)
-                if head.text() == "VMAF average":
-                    head.setToolTip(average)
-                elif head.text() == p1_title:
-                    head.setToolTip(worst)
-        self.est_target_note.setText(f"The target: VMAF average at least {policy.warn_mean:g}, worst 1% of frames at least "
-                                     f"{policy.warn_p1:g}. Every full file is measured again after conversion.")
-        self.codec_note.setText("AV1 files are usually smaller, but they play on fewer devices. "
-                                "Check that your TV or phone can play one first.")
+                key = column_key(t, c)
+                if key == "VMAF average":
+                    t.horizontalHeaderItem(c).setToolTip(average)
+                elif key == p1_title:
+                    t.horizontalHeaderItem(c).setToolTip(worst)
+        self.est_target_note.setText(tr("The target: VMAF average at least {mean}, worst 1% of frames at least {p1}. Every "
+                                        "full file is measured again after conversion.").format(
+                                            mean=g(policy.warn_mean), p1=g(policy.warn_p1)))
+        self.codec_note.setText(tr("AV1 files are usually smaller, but they play on fewer devices. Check that your TV or "
+                                   "phone can play one first."))
         self.codec_note.setVisible(s.codec == "av1")
-        self.resolution_note.setText("This permanently lowers the detail in the conversions, and videos are never "
-                                     "enlarged. They are checked against a smaller copy of the original and labelled "
-                                     "Resized. Keep the originals if you might want the full detail later.")
+        self.resolution_note.setText(tr("This permanently lowers the detail in the conversions, and videos are never "
+                                        "enlarged. They are checked against a smaller copy of the original and labelled "
+                                        "Resized. Keep the originals if you might want the full detail later."))
         self.resolution_note.setVisible(s.max_resolution != "original")
         for t, title in ((self.conv_table, 8), (self.review, 9)):
             t.setColumnHidden(title, not s.show_details)
-        size = "" if s.max_resolution == "original" else f", at most {self.resolution_box.currentText()}"
-        self.est_using.setText(f"{config.CODEC_NAMES[s.codec]}{size}. Change this in Settings.")
+        codec = config.CODEC_NAMES[s.codec]
+        self.est_using.setText(tr("{codec}. Change this in Settings.").format(codec=codec) if s.max_resolution == "original"
+                               else tr("{codec}, at most {size}. Change this in Settings.").format(
+                                   codec=codec, size=self.resolution_box.currentText()))
         self.conv_hint.show()
-        shrunk = "" if s.max_resolution == "original" else f" ({config.output_suffix(s.codec, s.max_resolution)} if it was shrunk)"
-        self.conv_hint.setText(f"Each conversion is saved beside its original with {config.CODEC_SUFFIX[s.codec]}{shrunk} added to "
-                               "the name. Originals are only read. You can pause at any time, and if the PC crashes, "
-                               "just reopen this app.")
+        suffix = config.CODEC_SUFFIX[s.codec]
+        if s.max_resolution == "original":
+            hint = tr("Each conversion is saved beside its original with {suffix} added to the name. Originals are only "
+                      "read. You can pause at any time, and if the PC crashes, just reopen this app.").format(suffix=suffix)
+        else:
+            hint = tr("Each conversion is saved beside its original with {suffix} ({shrunk} if it was shrunk) added to "
+                      "the name. Originals are only read. You can pause at any time, and if the PC crashes, just reopen "
+                      "this app.").format(suffix=suffix, shrunk=config.output_suffix(s.codec, s.max_resolution))
+        self.conv_hint.setText(hint)
 
     def _refresh_settings_page(self):
         for w in (self.hardware_box, self.codec_box, self.resolution_box, self.settings_reset, self.advanced_box):
@@ -1823,22 +2217,16 @@ class MainWindow(QMainWindow):
         v = QVBoxLayout(p)
         v.setContentsMargins(60, 30, 60, 30)
         v.addStretch(1)
-        title = QLabel(f"Welcome to {config.APP_NAME}")
+        title = self.live(QLabel(), lambda: tr("Welcome to {app}").format(app=config.APP_NAME))
         title.setStyleSheet("font-size:30pt; font-weight:700;")
         title.setAlignment(Qt.AlignCenter)
         v.addWidget(title)
-        head = QLabel("Shrink your videos, keep the quality.")
+        head = self.live(QLabel(), N_("Shrink your videos, keep the quality."))
         head.setObjectName("big")
         head.setAlignment(Qt.AlignCenter)
         v.addWidget(head)
         v.addSpacing(18)
-        for mark, name, text in (
-                ("🎯", "Zero guesswork", "No bitrates or codecs to configure. ClipShrink automatically finds the right "
-                                         "compression balance for every video."),
-                ("👁️", "Measured frame-by-frame", "Every result is scored against the original using Netflix's VMAF visual "
-                                                  "quality metric, and any clip that misses the target is clearly flagged."),
-                ("🛡️", "You stay in control", "Conversions are saved as new files alongside your originals. Compare both "
-                                              "versions side by side before deciding what to send to the Recycle Bin.")):
+        for mark, name, text in WELCOME:
             card = QFrame()
             card.setObjectName("card")
             row = QHBoxLayout(card)
@@ -1847,14 +2235,13 @@ class MainWindow(QMainWindow):
             icon = QLabel(mark)
             icon.setStyleSheet("font-family:'Segoe UI Emoji'; font-size:24pt; background:transparent; border:none;")
             row.addWidget(icon)
-            lab = QLabel(f"<b>{name}:</b> {text}")
+            lab = self.live(QLabel(), lambda name=name, text=text: f"<b>{tr(name)}:</b> {tr(text)}")
             lab.setWordWrap(True)
             lab.setStyleSheet("font-size:12pt; background:transparent; border:none;")
             row.addWidget(lab, 1)
             v.addWidget(card)
         v.addSpacing(22)
-        self.welcome_choose = QPushButton("Choose folder…")
-        self.welcome_choose.setObjectName("primary")
+        self.welcome_choose = self._button(N_("Choose folder…"), "primary")
         self.welcome_choose.setStyleSheet("font-size:13pt; padding:12px 40px;")
         self.welcome_choose.clicked.connect(self._welcome_choose)
         row = QHBoxLayout()
@@ -1863,7 +2250,7 @@ class MainWindow(QMainWindow):
         row.addStretch(1)
         v.addLayout(row)
         v.addSpacing(10)
-        self.welcome_skip = QCheckBox("Don't show this again")
+        self.welcome_skip = self.live(QCheckBox(), N_("Don't show this again"))
         row = QHBoxLayout()
         row.addStretch(1)
         row.addWidget(self.welcome_skip)
@@ -1873,7 +2260,7 @@ class MainWindow(QMainWindow):
         return p
 
     def _welcome_choose(self):
-        d = QFileDialog.getExistingDirectory(self, "Choose the folder with your videos")
+        d = QFileDialog.getExistingDirectory(self, tr("Choose the folder with your videos"))
         if d:
             self.go(0)
             self.start_scan(d)
@@ -1881,55 +2268,120 @@ class MainWindow(QMainWindow):
     def _welcome_skip_changed(self, skip):
         self.show_welcome_box.setChecked(not skip)      # saved through _settings_changed
 
-    # --- About ------------------------------------------------------------
+    # --- About, the right half of the Settings page ---------------------
     def about_text(self):
-        return self.about_browser.toPlainText()
+        """What the About column says, as plain text."""
+        raw = "\n".join(lab.text() for lab in self.about_box.findChildren(QLabel))
+        raw = re.sub(r"<br>|</p>", "\n", raw)
+        return html.unescape(re.sub(r"<[^>]+>", "", raw)).replace("​", "")
+
+    def about_links(self):
+        return re.findall(r"href='([^']+)'", "".join(lab.text() for lab in self.about_box.findChildren(QLabel)))
 
     def _about_link(self, url):
         """Every link leaves the app: the website for the web ones, Explorer for the folder."""
+        url = QUrl(url) if isinstance(url, str) else url
         if url.isLocalFile():
             Path(url.toLocalFile()).mkdir(parents=True, exist_ok=True)
         QDesktopServices.openUrl(url)
 
-    def _page_about(self):
-        p, v = self._page(f"About {config.APP_NAME}", "")
+    def copy_docs_link(self):
+        QApplication.clipboard().setText(config.DOCS_URL)
+
+    def _about_column(self, v):
+        t = self.live(QLabel(), lambda: tr("About {app}").format(app=config.APP_NAME))
+        t.setObjectName("title")
+        v.addWidget(t)
+        self.about_box = box = QWidget()
+        box.setObjectName("page")
+        inner = QVBoxLayout(box)
+        inner.setContentsMargins(0, 0, 0, 0)
+        inner.setSpacing(10)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setWidget(box)
+        v.addWidget(scroll, 1)
+        plain = "background:transparent; border:none;"
+
+        def text(words, hint=False, bold=False):
+            lab = self.live(QLabel(), words)
+            lab.setWordWrap(True)
+            lab.setTextFormat(Qt.RichText)
+            lab.setStyleSheet(plain + ("font-weight:600;" if bold else ""))
+            if hint:
+                lab.setObjectName("hint")
+            lab.linkActivated.connect(self._about_link)
+            return lab
+
+        def card(green=False):
+            c = QFrame()
+            c.setObjectName("card")
+            if green:
+                c.setStyleSheet("#card { background:#eaf6f0; border:1px solid #b9dfcc; }")
+            lay = QVBoxLayout(c)
+            lay.setContentsMargins(16, 12, 16, 12)
+            lay.setSpacing(8)
+            inner.addWidget(c)
+            return lay
+
+        def line(lay, mark, words, *extra):
+            row = QHBoxLayout()
+            row.setSpacing(10)
+            icon = QLabel(mark)
+            icon.setStyleSheet(plain + "font-family:'Segoe UI Emoji'; font-size:13pt;")
+            icon.setFixedWidth(26)
+            row.addWidget(icon, 0, Qt.AlignTop)
+            row.addWidget(words, 1)
+            for w in extra:
+                row.addWidget(w, 0, Qt.AlignTop)
+            lay.addLayout(row)
+
+        def small_button(mark, tip, fn):
+            b = QPushButton(mark)
+            self.live(b, tip, "setToolTip")
+            b.setStyleSheet("padding:2px 8px;")
+            b.clicked.connect(fn)
+            return b
+
         folder = reports.reports_dir(self.db_path)
         folder_url = QUrl.fromLocalFile(str(folder)).toString()
+        folder_text = html.escape(str(folder)).replace("\\", "\\​")     # a long path may wrap at each \
         site = config.DOCS_URL.replace("https://", "").rstrip("/")
         repo = config.PROJECT_URL.replace("https://", "")
-        explain = "".join(f"<p>{html.escape(t, quote=False)}</p>" for t in config.QUALITY_EXPLANATION.split("\n\n"))
-        self.about_browser = QTextBrowser()
-        self.about_browser.setOpenLinks(False)
-        self.about_browser.anchorClicked.connect(self._about_link)
-        self.about_browser.setHtml(
-            f"<p><b>{config.APP_NAME} {config.VERSION}</b></p>"
-            f"<p>{config.APP_NAME} shrinks H.264 videos to H.265 or AV1 to free up disk space. It measures every conversion "
-            "against its original with VMAF and warns you about any below the quality target. Your originals are "
-            "only read during conversion, and nothing is sent anywhere.</p>"
-            f"<p><b>Documentation:</b> <a href='{config.DOCS_URL}'>{site}</a><br>"
-            f"<b>Project:</b> <a href='{config.PROJECT_URL}'>{repo}</a></p>"
-            f"<p><b>Reports:</b> each batch leaves a CSV report in "
-            f"<a href='{folder_url}'>{html.escape(str(folder))}</a>. They're only for your information. Once a batch "
-            "is finished and you exit or click Start Over, the app forgets those files.</p>"
-            "<p><b>Licence:</b> GPL-3.0. It comes with no warranty, so keep a backup of footage you can't replace.</p>"
-            "<p><b>Built with:</b> FFmpeg, x265, SVT-AV1, VMAF, mpv and Qt. Their licences and source code links are in "
-            "THIRD_PARTY_NOTICES.md in the install folder and on the project page.</p>"
-            f"<h3>What does \"no quality loss\" mean?</h3>{explain}")
-        v.addWidget(self.about_browser, 1)
-        row = QHBoxLayout()
-        back = QPushButton("←  Back")
-        back.clicked.connect(lambda: self.go(self.stage))
-        row.addWidget(back)
-        row.addStretch(1)
-        v.addLayout(row)
-        return p
+        inner.addWidget(text(lambda: f"{config.APP_NAME} {config.VERSION}", bold=True))
+        inner.addWidget(text(lambda: tr(
+            "{app} shrinks H.264 videos to H.265 or AV1 to free up disk space. It measures every conversion against its "
+            "original with VMAF and warns you about any below the quality target. Your originals are only read during "
+            "conversion, and nothing is sent anywhere.").format(app=config.APP_NAME), hint=True))
+        lay = card()
+        self.docs_open = small_button("↗", N_("Open in your browser"), lambda: self._about_link(config.DOCS_URL))
+        self.docs_copy = small_button("⧉", N_("Copy the link"), self.copy_docs_link)
+        line(lay, "📄", text(lambda: f"<b>{tr('Documentation:')}</b> <a href='{config.DOCS_URL}'>{site}</a>"),
+             self.docs_open, self.docs_copy)
+        lay = card()
+        line(lay, "🔗", text(lambda: f"<b>{tr('Project:')}</b> <a href='{config.PROJECT_URL}'>{repo}</a>"))
+        line(lay, "📁", text(lambda: f"<b>{tr('Reports:')}</b> <a href='{folder_url}'>{folder_text}</a><br>" + html.escape(tr(
+            "Each batch leaves a CSV report here. They're only for your information. Once a batch is finished and you "
+            "exit or click Start Over, the app forgets those files."))))
+        lay = card()
+        line(lay, "⚖️", text(lambda: f"<b>{tr('Licence:')}</b> " + html.escape(tr(
+            "GPL-3.0. It comes with no warranty, so keep a backup of footage you can't replace."))))
+        line(lay, "🧩", text(lambda: f"<b>{tr('Built with:')}</b> " + html.escape(tr(
+            "FFmpeg, x265, SVT-AV1, VMAF, mpv and Qt. Their licences and source code links are in THIRD_PARTY_NOTICES.md "
+            "in the install folder and on the project page."))))
+        lay = card(green=True)
+        line(lay, "ⓘ", text(lambda: "<b>" + html.escape(tr('What does "no quality loss" mean?')) + "</b>"))
+        lay.addWidget(text(lambda: "".join(f"<p>{html.escape(part, quote=False)}</p>"
+                                           for part in tr(config.QUALITY_EXPLANATION).split("\n\n"))))
+        inner.addStretch(1)
 
     def closeEvent(self, ev):
         self._closing = True
         if self.busy and self.converter:
-            ans = QMessageBox.question(self, "Stop converting?",
-                                       "The batch is still running. If you close now, the current file is restarted "
-                                       "next time and finished files are kept. Close anyway?")
+            ans = QMessageBox.question(self, tr("Stop converting?"),
+                                       tr("The batch is still running. If you close now, the current file is restarted "
+                                          "next time and finished files are kept. Close anyway?"))
             if ans != QMessageBox.Yes:
                 ev.ignore()
                 self._closing = False

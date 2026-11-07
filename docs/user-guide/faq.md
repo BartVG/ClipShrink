@@ -9,6 +9,9 @@
 ??? question "Where did my earlier conversions go on Compare and clean up?"
     That page only lists the batch you just ran. Once you exit or click **Start Over**, ClipShrink forgets those files. The conversions stay on disk, each batch's report stays in the reports folder, and you can remove earlier originals yourself.
 
+??? question "Can I use ClipShrink in my language?"
+    Yes, in English, French, Dutch, German, Spanish, Italian or Portuguese. Choose **Language** at the top of Settings; it changes at once. The translations haven't yet been checked by native speakers, so corrections are welcome on [GitHub](https://github.com/tophe323/ClipShrink/issues).
+
 ??? question "What's VMAF?"
     A score from 0 to 100 made by Netflix, for how close a video looks to the original, based on how people see video. At 95 or above, most people can't see a difference. **Worst 1%** is the score of the worst moments: 1% of the video's frames score lower than this, so it catches a short bad patch that a good average would hide. Hover over either column title in the app for a reminder.
 
@@ -25,7 +28,7 @@
     You can click **Pause** and later **Resume** during a batch. If you close the window while a batch is running, ClipShrink asks "Stop converting?". The file being converted restarts next time, and finished files are kept. If the app or PC crashes, reopen it and choose to continue where you left off.
 
 ??? question "Where are my reports?"
-    In `%LOCALAPPDATA%\ClipShrink\reports`. The **About** page has a link that opens the folder. See [Reports](reports.md).
+    In `%LOCALAPPDATA%\ClipShrink\reports`. The **About** column on the Settings page has a link that opens the folder. See [Reports](reports.md).
 
 ??? question "Where are the converted files?"
     Beside each original, with `_(h265)` or `_(av1)` added to the name, and the size too if it was shrunk, for example `_(1080p)_(h265)`. Files of any type other than `.mp4`, `.mov`, `.m4v` and `.lrv` are written as `.mkv`, and `.lrv` files become `.mp4`.
@@ -46,7 +49,7 @@
     The Convert page says your computer will not go to sleep while the batch runs.
 
 ??? question "Is anything sent over the internet?"
-    ClipShrink's About page says nothing is sent anywhere, and that your records and reports stay on your PC in `%LOCALAPPDATA%\ClipShrink`.
+    ClipShrink's About column, on the Settings page, says nothing is sent anywhere, and that your records and reports stay on your PC in `%LOCALAPPDATA%\ClipShrink`.
 
 ## Next steps
 

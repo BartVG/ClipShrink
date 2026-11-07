@@ -17,16 +17,20 @@ class SideBySidePlayer:
         self._f = None
         self._lock = threading.Lock()
         self._req = 0
-        self.detail = False
+        self.zoom = None            # None for the whole picture, or 1, 2 or 4 times
+        self.centre = (0.5, 0.5)    # the middle of the zoomed view, as a fraction of the picture
         self.src_width, self.src_height = width, height
         self.conv_width, self.conv_height = None, None
 
     def _graph(self):
         w, h = self.conv_width or self.src_width, self.conv_height or self.src_height
-        if self.detail and w and h:
-            # 1:1 pixels, a window from the centre of each picture
-            cw, ch = min(w, 960), min(h, 1080)
-            f = f"crop={cw}:{ch}:{(w - cw) // 2}:{(h - ch) // 2}"
+        if self.zoom and w and h:
+            # The same window from each picture. 100% is 1:1 pixels; 200% and 400% enlarge
+            # each pixel into a block, so the detail shows instead of a blur.
+            cw, ch, x, y = self.window(w, h)
+            f = f"crop={cw}:{ch}:{x}:{y}"
+            if self.zoom > 1:
+                f += f",scale={cw * self.zoom}:{ch * self.zoom}:flags=neighbor"
         elif w and w > 1920:
             f = "scale=1920:-2"
         else:
@@ -34,6 +38,26 @@ class SideBySidePlayer:
         # A shrunk conversion: bring the original to the same size so they can sit side by side.
         match = f"scale={w}:{h}:flags=lanczos," if self.conv_width and self.conv_width != self.src_width else ""
         return f"[vid1]{match}{f}[a];[vid2]{f}[b];[a][b]hstack[vo]"
+
+    def window(self, w=None, h=None):
+        """Size and top-left corner of the zoomed window, kept inside the picture."""
+        w = w or self.conv_width or self.src_width
+        h = h or self.conv_height or self.src_height
+        z = self.zoom or 1
+        cw = max(2, min(w, 960) // z // 2 * 2)
+        ch = max(2, min(h, 1080) // z // 2 * 2)
+        x = min(max(0, round(self.centre[0] * w - cw / 2)), w - cw)
+        y = min(max(0, round(self.centre[1] * h - ch / 2)), h - ch)
+        return cw, ch, x, y
+
+    def clamp_centre(self, cx, cy):
+        """The nearest centre whose window stays inside the picture."""
+        w, h = self.conv_width or self.src_width, self.conv_height or self.src_height
+        if not (w and h):
+            return cx, cy
+        z = self.zoom or 1
+        hw, hh = min(w, 960) // z / 2 / w, min(h, 1080) // z / 2 / h
+        return min(max(cx, hw), 1 - hw), min(max(cy, hh), 1 - hh)
 
     def start(self):
         if self.src_width is None:
@@ -44,7 +68,7 @@ class SideBySidePlayer:
             self.conv_width, self.conv_height = conv.width, conv.height
         cmd = [tools.mpv(), self.original, f"--external-file={self.converted}", "--no-config", "--pause",
                "--keep-open=always", "--hr-seek=yes", "--osc=no", "--input-default-bindings=no", "--input-vo-keyboard=no",
-               "--osd-level=0", "--force-window=yes", "--hwdec=auto-copy-safe", "--title=ClipShrink side by side",
+               "--osd-level=0", "--cursor-autohide=no", "--force-window=yes", "--hwdec=auto-copy-safe", "--title=ClipShrink side by side",
                f"--input-ipc-server={self.pipe}", f"--lavfi-complex={self._graph()}", "--aid=1", "--msg-level=all=error"]
         if self.mute:
             cmd.append("--mute=yes")
@@ -132,7 +156,13 @@ class SideBySidePlayer:
         self._settle()
 
     def set_detail(self, on):
-        self.detail = bool(on)
+        self.set_view(1 if on else None)
+
+    def set_view(self, zoom, centre=None):
+        """zoom None shows the whole picture; 1, 2 or 4 shows a window at that size."""
+        self.zoom = zoom
+        if centre is not None:
+            self.centre = self.clamp_centre(*centre)
         at = self.position() or 0
         paused = self.is_paused()
         m = self._cmd("set_property", "lavfi-complex", self._graph())

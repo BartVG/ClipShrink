@@ -39,6 +39,7 @@ Every clip there is converted with every available encoder, and all must pass. W
 | `test_interface.py` | Qt interface checks run offscreen: theme, tick boxes, skipped H.265 rows, version in title, sorting, Select All/Recommended, warning sign, About, progress bars |
 | `test_player.py` | Side-by-side sync, detail mode, player stopping reported as an error |
 | `test_settings.py` | Settings saved and restored, bad settings file, encoder fallback, Settings page, Encoding column, Resized label |
+| `test_version_1_7.py` | Open file location, Explorer-style ticking, Settings and About on one page, zoom and dragging, the clickable progress bar, every language complete and switching at once, translated reasons and reports, installer languages |
 | `test_version_1_6_1.py` | Taskbar ID only when run from source, resizable columns, VMAF tooltips, Welcome screen |
 | `test_version_1_6.py` | Quality policy and real conversions with custom values, Advanced section, About, detected card, automatic start, Start Over and forgetting, "Already has a conversion" |
 | `test_codec_and_size.py` | AV1 on generated clips and the real clip, each encoder; where a resize lands; downscaling keeps tracks and meets the target against a shrunken copy; never upscales; estimate follows settings; player with different sizes |

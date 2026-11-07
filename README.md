@@ -57,21 +57,21 @@ Each conversion is saved beside its original with `_(h265)` added to the name, o
 ![Convert page](docs/images/3-convert.png)
 
 ### 4. Compare and clean up
-Play any original beside its conversion, in sync, with frame stepping and a 100% zoom. It starts by itself, and the space bar pauses it. Left is the original and right is the conversion. The list shows the videos from this session.
+Play any original beside its conversion, in sync, with frame stepping and 100%, 200% and 400% zoom that you can drag around. It starts by itself, and the space bar pauses it. Left is the original and right is the conversion. The list shows the videos from this session.
 
 ![Side by side playback of a snowy mountain view, identical on both sides](docs/images/side-by-side.jpg)
 
-Click any column title to sort, and drag its edge to resize. Hover over the VMAF columns for a short explanation. **Select All** and **Select Recommended** tick files for you, and Recommended leaves out anything with a warning sign. When you're happy, you can send originals to the Recycle Bin, then remove the added tags from the new names. Both steps are optional, ask you to confirm and show a progress bar.
+Click any column title to sort, and drag its edge to resize. Hover over the VMAF columns for a short explanation. Right-click a row to open its folder. **Select All** and **Select Recommended** tick files for you, and Recommended leaves out anything with a warning sign. Ctrl+click, Shift+click and Ctrl+A tick rows the way you'd select files in Explorer. When you're happy, you can send originals to the Recycle Bin, then remove the added tags from the new names. Both steps are optional, ask you to confirm and show a progress bar.
 
 ### Settings
-The defaults suit most people. If you want, you can choose the graphics card or the processor, H.265 or AV1, and a largest size. Shrinking loses detail for good, so those conversions are labelled Resized, and they're checked against a shrunken copy of the original. You can also show an Encoding column with the format, quality setting, resolution and bitrate.
+**Language** comes first: English, Français, Nederlands, Deutsch, Español, Italiano or Português, switched at once. The translations haven't yet been checked by native speakers, so corrections are welcome. The rest of the defaults suit most people. If you want, you can choose the graphics card or the processor, H.265 or AV1, and a largest size. Shrinking loses detail for good, so those conversions are labelled Resized, and they're checked against a shrunken copy of the original. You can also show an Encoding column with the format, quality setting, resolution and bitrate.
 
 An Advanced section, locked until you confirm you understand it, lets you set your own VMAF values. See [Advanced settings](https://tophe323.github.io/ClipShrink/user-guide/advanced-settings/).
 
 ![Settings page](docs/images/6-settings.png)
 
 ### Start Over
-Each batch leaves a CSV report in a folder you can open from **About**. When you're finished, exit or click **Start Over**. ClipShrink then forgets those files, so changes you make outside the app can't confuse it. If you scan the folder again, an original with a conversion beside it isn't ticked.
+Each batch leaves a CSV report in a folder you can open from **About**, which sits beside the settings. When you're finished, exit or click **Start Over**. ClipShrink then forgets those files, so changes you make outside the app can't confuse it. If you scan the folder again, an original with a conversion beside it isn't ticked.
 
 ## What "no quality loss" means here
 
